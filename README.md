@@ -1,5 +1,5 @@
 
-# react-native-proximiio-react-native-map
+# proximiio-react-native-map
 
 ## Getting started
 
