@@ -1,8 +1,9 @@
 import React, { Component, Headers } from 'react'
 import MapboxGL from '@mapbox/react-native-mapbox-gl'
 import Proximiio from 'proximiio-react-native-core'
-import generateSource from './indoorLayers'
-import layerStyles from './layerStyles'
+import Constants from './constants'
+
+const StyleSheet = MapboxGL.StyleSheet
 
 const CORE_API_ROOT = 'https://api.proximi.fi/core'
 const GEO_API_ROOT = 'https://api.proximi.fi/v4/geo'
@@ -52,9 +53,7 @@ const DummyCollection = {
 
 let TOKEN = null
 let poiCache = null
-let indoorCache = null
 
-const BOTTOM_MAP_LAYER = 'country_label-en'
 class ProximiioMap {
   constructor() {
     this.loaded = false
@@ -71,7 +70,10 @@ class ProximiioMap {
     this.userLevel = 0
     this.route = null
     this.floors = []
-    this.lastFloorLayer = BOTTOM_MAP_LAYER
+    this.showGeoJSON = true
+    this.showRaster = true
+    this.showPOI = true
+    this.lastFloorLayer = Constants.DEFAULT_BOTTOM_LAYER
   }
 
   async authorize(token) {
@@ -115,7 +117,6 @@ class ProximiioMap {
   }
 
   onFloorChange(floor) {
-    // console.log('map on floor change', floor)
     if (floor !== null) {
       this.level = floor.level
     }
@@ -127,11 +128,9 @@ class ProximiioMap {
 
   async routeTo(coordinates, level) {
     if (this.currentLocation === null) {
-      console.log('routing not possible, current location (source) not available')
+      //console.log('routing not possible, current location (source) not available')
       return
     }
-
-    // console.log('route to', coordinates, level)
 
     const lngStart = this.currentLocation.lng
     const latStart = this.currentLocation.lat
@@ -168,11 +167,16 @@ class ProximiioMap {
     return poiCache
   }
 
-  featuresForLevel(level) {
-    if (typeof this.featureCache[level] === 'undefined') {
-      this.featureCache[level] = {
+  featuresForLevel(level, isPoi) {
+    const cacheKey = `${level}-${isPoi ? 'poi' : 'other'}`
+    if (typeof this.featureCache[cacheKey] === 'undefined') {
+      this.featureCache[cacheKey] = {
         type: 'FeatureCollection',
         features: this.features.features.filter(f => {
+          if ((isPoi && f.properties.usecase !== 'poi') || (!isPoi && f.properties.usecase === 'poi')) {
+            return false
+          }
+
           if (f.properties.usecase && f.properties.usecase === 'levelchanger') {
             return f.properties.level_min <= level && f.properties.level_max >= level
           } else {
@@ -182,7 +186,7 @@ class ProximiioMap {
       }
     }
 
-    return this.featureCache[level]
+    return this.featureCache[cacheKey]
   }
 
   floorplanSource(level) {
@@ -195,12 +199,12 @@ class ProximiioMap {
 
     const layers = []
     const sources = floors.map(floor => {
-      const layer = `proximiio-floorplan-${floor.id}`
+      const layer = `${Constants.LAYER_RASTER_FLOORPLAN}-${floor.id}`
       layers.push(layer)
       return (
         <MapboxGL.Animated.ImageSource
-          key={`floorplan-source-${floor.id}`}
-          id="floorplan"
+          key={`${Constants.SOURCE_RASTER_FLOORPLAN}-${floor.id}`}
+          id={`${Constants.SOURCE_RASTER_FLOORPLAN}-${floor.id}`}
           coordinates={[
             [floor.anchors[0].lng, floor.anchors[0].lat],
             [floor.anchors[1].lng, floor.anchors[1].lat],
@@ -208,24 +212,248 @@ class ProximiioMap {
             [floor.anchors[2].lng, floor.anchors[2].lat]
           ]}
           url={ floor.floorplan_image_url }>
-          <MapboxGL.RasterLayer id={layer} aboveLayerID={BOTTOM_MAP_LAYER} minZoomLevel={12}/>
+          <MapboxGL.RasterLayer
+            id={layer}
+            aboveLayerID={Constants.DEFAULT_BOTTOM_LAYER}
+            minZoomLevel={12}
+            style={StyleSheet.create({
+              visibility: this.showRaster ? 'visible' : 'none'
+            })} />
         </MapboxGL.Animated.ImageSource>
       )
     })
 
-    this.lastFloorLayer = layers.length > 0 ? layers[layers.length - 1] : BOTTOM_MAP_LAYER
+    this.lastFloorLayer = layers.length > 0 ? layers[layers.length - 1] : Constants.DEFAULT_BOTTOM_LAYER
     return sources
   }
 
+  poiSourceForLevel(level) {
+    return (
+      <MapboxGL.ShapeSource
+        id={Constants.SOURCE_POI}
+        key={Constants.SOURCE_POI}
+        shape={this.featuresForLevel(level, true)}
+        maxZoomLevel={24}>
+
+      <MapboxGL.SymbolLayer
+        id={Constants.LAYER_POIS_ICONS}
+        minZoomLevel={16}
+        maxZoomLevel={24}
+        filter={
+          [ "all", ["==", "usecase", "poi"], ["==", "level", level] ]
+        }
+        style={StyleSheet.create({
+          iconImage: StyleSheet.identity('amenity'),
+          iconSize: 0.9,
+          textOffset: [0, 2],
+          textFont: [ "Klokantech Noto Sans Regular" ],
+          textSize: 14,
+          symbolPlacement: 'point',
+          iconAllowOverlap: true,
+          textAllowOverlap: true,
+          visibility: this.showPOI ? 'visible' : 'none'
+        })} />
+
+      <MapboxGL.SymbolLayer
+        id={Constants.LAYER_POIS_LABELS}
+        minZoomLevel={18}
+        maxZoomLevel={24}
+        filter={
+          [ "all", ["==", "usecase", "poi"], ["==", "level", level] ]
+        }
+        style={StyleSheet.create({
+          textOffset: [0, 2],
+          textFont: [ "Klokantech Noto Sans Regular" ],
+          textField: StyleSheet.identity('title'),
+          textSize: 14,
+          symbolPlacement: 'point',
+          iconAllowOverlap: true,
+          textAllowOverlap: false,
+          visibility: this.showPOI ? 'visible' : 'none'
+        })} />
+      </MapboxGL.ShapeSource>
+    )
+  }
+
   shapeSourceForLevel(level) {
-    return generateSource(this.featuresForLevel(level), {}, level)
+    const visibility = this.showGeoJSON ? 'visible' : 'none'
+    return (
+      <MapboxGL.ShapeSource
+        id={Constants.SOURCE_GEOJSON_FLOORPLAN}
+        key={Constants.SOURCE_GEOJSON_FLOORPLAN}
+        shape={this.featuresForLevel(level, false)}
+        maxZoomLevel={24}>
+
+        <MapboxGL.FillLayer
+          id={Constants.LAYER_FLOORS}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "floor"], ["==", "category", "base_floor"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillColor: StyleSheet.identity('color'),
+            fillOpacity: 0.7,
+            visibility
+          })} />
+
+        <MapboxGL.LineLayer
+          id={Constants.LAYER_FLOORS_LINES}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "floor"], ["==", "category", "room"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            lineColor: StyleSheet.identity('color'),
+            visibility
+          })} />
+
+        <MapboxGL.FillLayer
+          id={Constants.LAYER_BASE_FLOOR}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "base_floor"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillColor: StyleSheet.identity('color'),
+            visibility
+          })} />
+
+        <MapboxGL.FillLayer
+          id={Constants.LAYER_ROAD}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "road"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillColor: StyleSheet.identity('color'),
+            visibility
+          })} />
+
+        <MapboxGL.FillLayer
+          id={Constants.LAYER_AREAS}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "area"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillColor: '#80F080',
+            visibility
+          })} />
+
+        <MapboxGL.FillLayer
+          id={Constants.LAYER_PARKING_BASE}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "parking_base"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillColor: StyleSheet.identity('color'),
+            visibility
+          })} />
+
+        <MapboxGL.FillExtrusionLayer
+          id={Constants.LAYER_SHOPS}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "shop"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillExtrusionColor: StyleSheet.identity('color'),
+            fillExtrusionHeight: StyleSheet.identity('height'),
+            fillExtrusionBase: 0.1,
+            fillExtrusionOpacity: 0.8,
+            visibility
+          })} />
+
+        <MapboxGL.FillLayer
+          id={Constants.LAYER_ROOMS}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "floor"], ["==", "category", "room"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillColor: StyleSheet.identity('color'),
+            visibility
+          })} />
+
+        <MapboxGL.FillLayer
+          id={Constants.LAYER_HOLES}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "hole"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillColor: StyleSheet.identity('color'),
+            visibility
+          })} />
+
+        <MapboxGL.FillExtrusionLayer
+          id={Constants.LAYER_WALLS}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "wall"], ["==", "level", level]]
+          }
+          style={StyleSheet.create({
+            fillExtrusionColor: StyleSheet.identity('color'),
+            fillExtrusionHeight: 4,
+            fillExtrusionBase: 0.1,
+            fillExtrusionOpacity: 1,
+            visibility
+          })} />
+
+        <MapboxGL.SymbolLayer
+          id={Constants.LAYER_LEVELCHANGERS}
+          minZoomLevel={16}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "usecase", "levelchanger"], ["<=", "level_min", level], [">=", "level_max", level]]
+          }
+          style={StyleSheet.create({
+            iconImage: StyleSheet.identity('levelchanger'),
+            iconSize: 0.9,
+            textOffset: [0, 1],
+            textFont: [ "Klokantech Noto Sans Regular" ],
+            textField: StyleSheet.identity('title'),
+            textSize: 14,
+            symbolPlacement: 'point',
+            iconAllowOverlap: true,
+            textAllowOverlap: true,
+            visibility
+          })} />
+
+        <MapboxGL.FillExtrusionLayer
+          id={Constants.LAYER_POLYGONS_ABOVE_PATHS}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={
+            [ "all", ["==", "type", "polygon_above_path"], ["==", "level", 0]]
+          }
+          style={StyleSheet.create({
+            fillExtrusionColor: StyleSheet.identity('color'),
+            fillExtrusionHeight: StyleSheet.identity('height'),
+            fillExtrusionBase: 0.1,
+            fillExtrusionOpacity: 0.8,
+            visibility
+          })} />
+      </MapboxGL.ShapeSource>
+    )
   }
 
   imageSource() {
     return (
       <MapboxGL.ShapeSource
-        id="image-source"
-        key="image-source"
+        id="proximiio-image-source"
+        key="proximiio-image-source"
         shape={DummyCollection}
         images={this.amenityLinks}
         maxZoomLevel={28}/>
@@ -233,62 +461,69 @@ class ProximiioMap {
   }
 
   routingSource(level) {
+    let ignore = false
+    let path = null
     if (!this.route) {
-      return null
+      ignore = true
+    } else {
+      path = this.route.levelPaths[level]
     }
-
-    const path = this.route.levelPaths[level]
 
     if (!path) {
-      return null
+      ignore = true
     }
 
-    // console.log('path', this.route)
+    let collection = DummyCollection
 
-    path.properties.usecase = 'route-line'
-    const routeStartCurrent = path.geometry.coordinates[0]
-    const routeStartOriginal = this.route.nearestPoint.geometry.coordinates
-    const isRouteStart = compareLatLngCoordinates(routeStartCurrent, routeStartOriginal)
-    const routeFinishCurrent = path.geometry.coordinates[path.geometry.coordinates.length - 1]
-    const routeFinishPath = this.route.levelPaths[this.route.finish.properties.level]
-    const routeFinishOriginal = routeFinishPath.geometry.coordinates[routeFinishPath.geometry.coordinates.length - 1]
-    const isRouteFinish = compareLatLngCoordinates(routeFinishCurrent, routeFinishOriginal)
+    if (!ignore) {
+      path.properties.usecase = 'route-line'
+      const routeStartCurrent = path.geometry.coordinates[0]
+      const routeStartOriginal = this.route.nearestPoint.geometry.coordinates
+      const isRouteStart = compareLatLngCoordinates(routeStartCurrent, routeStartOriginal)
+      const routeFinishCurrent = path.geometry.coordinates[path.geometry.coordinates.length - 1]
+      const routeFinishPath = this.route.levelPaths[this.route.finish.properties.level]
+      const routeFinishOriginal = routeFinishPath.geometry.coordinates[routeFinishPath.geometry.coordinates.length - 1]
+      const isRouteFinish = compareLatLngCoordinates(routeFinishCurrent, routeFinishOriginal)
 
-    const collection = {
-      type: 'FeatureCollection',
-      features: [
-        this.route.levelPaths[level],
-        {
-          type: 'Feature',
-          id: 'route-start',
-          geometry: {
-            type: 'Point',
-            coordinates: path.geometry.coordinates[0]
+      collection = {
+        type: 'FeatureCollection',
+        features: [
+          this.route.levelPaths[level],
+          {
+            type: 'Feature',
+            id: Constants.FEATURE_ROUTING_START,
+            geometry: {
+              type: 'Point',
+              coordinates: path.geometry.coordinates[0]
+            },
+            properties: {
+              usecase: 'routing-symbol',
+              icon: isRouteStart ? 'route_start' : 'route_start_continue'
+            }
           },
-          properties: {
-            usecase: 'routing-symbol',
-            icon: isRouteStart ? 'route_start' : 'route_start_continue'
+          {
+            type: 'Feature',
+            id: Constants.FEATURE_ROUTING_FINISH,
+            geometry: {
+              type: 'Point',
+              coordinates: path.geometry.coordinates[path.geometry.coordinates.length - 1]
+            },
+            properties: {
+              usecase: 'routing-symbol',
+              icon: isRouteFinish ? 'route_finish' : 'route_finish_continue'
+            }
           }
-        },
-        {
-          type: 'Feature',
-          id: 'route-finish',
-          geometry: {
-            type: 'Point',
-            coordinates: path.geometry.coordinates[path.geometry.coordinates.length - 1]
-          },
-          properties: {
-            usecase: 'routing-symbol',
-            icon: isRouteFinish ? 'route_finish' : 'route_finish_continue'
-          }
-        }
-      ]
+        ]
+      }
     }
+
+    const rasterLayer = this.showRaster ? this.lastFloorLayer : Constants.DEFAULT_BOTTOM_LAYER
+    const topLayer = this.showGeoJSON ? Constants.LAYER_HOLES : rasterLayer
 
     return (
       <MapboxGL.ShapeSource
-        id="routing-source"
-        key="routing-source"
+        id={Constants.SOURCE_ROUTING}
+        key={Constants.SOURCE_ROUTING}
         shape={collection}
         cluster={false}
         images={{
@@ -299,64 +534,79 @@ class ProximiioMap {
         maxZoomLevel={24}>
 
         <MapboxGL.SymbolLayer
-          id="routing-symbols"
-          aboveLayerID={ this.showGeoJSON ? 'proximiio-holes' : (this.showRaster ? this.lastFloorLayer : BOTTOM_MAP_LAYER)}
-          style={layerStyles.routeSymbol}/>
+          id={Constants.LAYER_ROUTING_SYMBOLS}
+          aboveLayerID={topLayer}
+          style={StyleSheet.create({
+            iconImage: StyleSheet.identity('icon'),
+            iconSize: 1,
+            iconAllowOverlap: true
+          })}
+          visibility={ !ignore ? 'visible' : 'none' } />
 
         <MapboxGL.LineLayer
-          id="routing-layer"
+          id={Constants.LAYER_ROUTING_LINE}
           minZoomLevel={10}
           maxZoomLevel={24}
-          aboveLayerID={ this.showGeoJSON ? 'proximiio-holes' : (this.showRaster ? this.lastFloorLayer : BOTTOM_MAP_LAYER)}
+          aboveLayerID={topLayer}
           filter={
             [ "all", ["==", "usecase", "route-line"] ]
           }
-          style={layerStyles.routeLine}/>
+          style={StyleSheet.create({
+            lineOpacity: 0.9,
+            lineColor: '#00ee00',
+            lineWidth: 12
+          })}
+          visibility={ !ignore ? 'visible' : 'none' } />
 
       </MapboxGL.ShapeSource>
     )
   }
 
   userPositionSource(level) {
-    if (!this.currentLocation) {
-      return null
+    const hasLocation = this.currentLocation !== null
+    const userLocation = hasLocation ? [ this.currentLocation.lng, this.currentLocation.lat ] : [0, 0]
+    const coordinates = this.route ? this.route.nearestPoint.geometry.coordinates : userLocation
+    const accuracy = hasLocation ? this.currentLocation.accuracy / 1000 : 0
+
+    let collection = DummyCollection
+
+    if (hasLocation || this.route) {
+      collection = {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates
+            },
+            properties: {
+              usecase: 'user-location',
+              level: this.userLevel
+            }
+          },
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [ createGeoJSONCircle(coordinates, accuracy, 50) ]
+            },
+            properties: {
+              usecase: 'user-location-accuracy',
+              level: this.userLevel
+            }
+          }
+        ]
+      }
     }
 
-    const coordinates = [ this.currentLocation.lng, this.currentLocation.lat ]
-    const collection = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates
-          },
-          properties: {
-            usecase: 'user-location',
-            level: this.userLevel
-          }
-        },
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [ createGeoJSONCircle(coordinates, this.currentLocation.accuracy / 1000, 50) ]
-          },
-          properties: {
-            usecase: 'user-location-accuracy',
-            level: this.userLevel
-          }
-        }
-      ]
-    }
-    const topLayer = this.showGeoJSON ? "proximiio-polygons-above-paths" : (this.showRaster ? this.lastFloorLayer : BOTTOM_MAP_LAYER)
-    // console.log('user collection', collection, 'userLevel', this.userLevel, 'mapLevel', level, 'topLayer', topLayer)
+    const topRasterLayer = this.showRaster ? this.lastFloorLayer : Constants.DEFAULT_BOTTOM_LAYER
+    const topLayer = this.showGeoJSON ? Constants.LAYER_POLYGONS_ABOVE_PATHS : topRasterLayer
 
     return (
       <MapboxGL.ShapeSource
-        id="proximiio-routing-source"
-        key="proximiio-routing-source"
+        id={Constants.SOURCE_USER_LOCATION}
+        key={Constants.SOURCE_USER_LOCATION}
         shape={collection}
         cluster={false}
         images={{
@@ -366,16 +616,25 @@ class ProximiioMap {
         maxZoomLevel={24}>
 
         <MapboxGL.SymbolLayer
-          id="proximiio-user-position"
+          id={Constants.LAYER_USER_MARKER}
           filter={[ "all", ["==", "usecase", "user-location"], ["==", "level", level] ]}
           aboveLayerID={topLayer}
-          style={layerStyles.userPosition} />
+          style={StyleSheet.create({
+            iconImage: 'bluedot',
+            iconSize: 1,
+            iconAllowOverlap: true
+          })}
+          visibility={hasLocation ? 'visible' : 'none'}/>
 
         <MapboxGL.FillLayer
-          id="proximiio-user-accuracy"
+          id={Constants.LAYER_USER_ACCURACY}
           filter={[ "all", ["==", "usecase", "user-location-accuracy"], ["==", "level", level] ]}
           aboveLayerID={topLayer}
-          style={layerStyles.userAccuracy} />
+          style={StyleSheet.create({
+            fillColor: '#0080c0',
+            fillOpacity: 0.3
+          })}
+          visibility={hasLocation ? 'visible' : 'none'} />
       </MapboxGL.ShapeSource>
     )
   }
@@ -383,13 +642,14 @@ class ProximiioMap {
   indoorSources(level, showRaster, showGeoJSON) {
     this.showRaster = showRaster
     this.showGeoJSON = showGeoJSON
-
-    const sources = [ this.imageSource(level) ]
-    if (showRaster) { sources.push(this.floorplanSource(level)) }
-    if (showGeoJSON) { sources.push(this.shapeSourceForLevel(level)) }
-    sources.push(this.routingSource(level))
-    sources.push(this.userPositionSource(level))
-    return sources
+    return [
+      this.imageSource(level),
+      this.floorplanSource(level),
+      this.shapeSourceForLevel(level),
+      this.poiSourceForLevel(level),
+      this.routingSource(level),
+      this.userPositionSource(level)
+    ]
   }
 
   // event handling

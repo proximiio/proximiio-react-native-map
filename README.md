@@ -16,7 +16,6 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 import Proximiio from 'proximiio-react-native-core'
 import ProximiioMap from 'proximiio-react-native-map'
 
-
 componentDidMount() {
 	this.initMapData()
 }
