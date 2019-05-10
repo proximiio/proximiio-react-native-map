@@ -1,9 +1,10 @@
 import React, { Component, Headers } from 'react'
-import MapboxGL from '@mapbox/react-native-mapbox-gl'
+import MapboxGL  from '@react-native-mapbox/maps'
 import Proximiio from 'proximiio-react-native-core'
 import Constants from './constants'
+import { Platform } from 'react-native';
 
-const StyleSheet = MapboxGL.StyleSheet
+const isIOS = Platform.OS === 'ios'
 
 const CORE_API_ROOT = 'https://api.proximi.fi/core'
 const GEO_API_ROOT = 'https://api.proximi.fi/v4/geo'
@@ -89,10 +90,12 @@ class ProximiioMap {
     this.amenities = await fetch(amenitiesURL).then(jsonize)
 
     this.amenityLinks = {}
+    this.amenityBaseLinks = {}
 
     this.amenityMap = this.amenities.reduce((acc, item) => {
       if (item.icon && item.icon.match(/data:image/)) {
         acc[item.id] = item.icon
+        this.amenityBaseLinks[item.id] = { uri: item.icon }
         this.amenityLinks[item.id] = { uri: `${GEO_API_ROOT}/amenities/${item.id}.png?token=${TOKEN}` }
       }
       return acc
@@ -198,6 +201,8 @@ class ProximiioMap {
     )
 
     const layers = []
+    const visibility = this.showRaster ? 'visible' : 'none'
+
     const sources = floors.map(floor => {
       const layer = `${Constants.LAYER_RASTER_FLOORPLAN}-${floor.id}`
       layers.push(layer)
@@ -216,9 +221,9 @@ class ProximiioMap {
             id={layer}
             aboveLayerID={Constants.DEFAULT_BOTTOM_LAYER}
             minZoomLevel={12}
-            style={StyleSheet.create({
-              visibility: this.showRaster ? 'visible' : 'none'
-            })} />
+            style={{
+              visibility
+            }} />
         </MapboxGL.Animated.ImageSource>
       )
     })
@@ -228,6 +233,8 @@ class ProximiioMap {
   }
 
   poiSourceForLevel(level) {
+    const visibility = this.showPOI ? 'visible' : 'none'
+
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_POI}
@@ -239,44 +246,61 @@ class ProximiioMap {
         id={Constants.LAYER_POIS_ICONS}
         minZoomLevel={16}
         maxZoomLevel={24}
-        filter={
-          [ "all", ["==", "usecase", "poi"], ["==", "level", level] ]
+        filter={isIOS ?
+          [
+            'all',
+            ['==', 'usecase', "poi"],
+            ['==', 'level', level]
+          ] :
+          [
+            'all',
+            ['==', ['get', 'usecase'], "poi"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]
         }
-        style={StyleSheet.create({
-          iconImage: StyleSheet.identity('amenity'),
-          iconSize: 0.9,
-          textOffset: [0, 2],
-          textFont: [ "Klokantech Noto Sans Regular" ],
-          textSize: 14,
+        style={{
+          iconImage: '{amenity}',
+          iconSize: 0.4,
           symbolPlacement: 'point',
           iconAllowOverlap: true,
           textAllowOverlap: true,
-          visibility: this.showPOI ? 'visible' : 'none'
-        })} />
+          visibility
+        }} />
 
       <MapboxGL.SymbolLayer
         id={Constants.LAYER_POIS_LABELS}
         minZoomLevel={18}
         maxZoomLevel={24}
-        filter={
-          [ "all", ["==", "usecase", "poi"], ["==", "level", level] ]
+        filter={isIOS ?
+          [
+            'all',
+            ['==', 'usecase', "poi"],
+            ['==', 'level', level]
+          ] :
+          [
+            'all',
+            ['==', ['get', 'usecase'], "poi"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]
         }
-        style={StyleSheet.create({
+        style={{
           textOffset: [0, 2],
-          textFont: [ "Klokantech Noto Sans Regular" ],
-          textField: StyleSheet.identity('title'),
+          textField: ['get', 'title'],
+          textFont: ['Klokantech Noto Sans Regular'],
           textSize: 14,
           symbolPlacement: 'point',
           iconAllowOverlap: true,
           textAllowOverlap: false,
-          visibility: this.showPOI ? 'visible' : 'none'
-        })} />
+          visibility
+        }} />
       </MapboxGL.ShapeSource>
     )
   }
 
   shapeSourceForLevel(level) {
+    const topLayer = this.showRaster ? this.lastFloorLayer : Constants.DEFAULT_BOTTOM_LAYER
     const visibility = this.showGeoJSON ? 'visible' : 'none'
+
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_GEOJSON_FLOORPLAN}
@@ -286,165 +310,284 @@ class ProximiioMap {
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_FLOORS}
+          aboveLayerID={topLayer}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "floor"], ["==", "category", "base_floor"], ["==", "level", level]]
-          }
-          style={StyleSheet.create({
-            fillColor: StyleSheet.identity('color'),
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "floor"],
+              ["==", "category", "base_floor"],
+              ["==", "level", level]
+            ] :
+            [
+              'all',
+              ['==', ['get', 'type'], "floor"],
+              ['==', ['get', 'category'], "base_floor"],
+              ['==', ['to-number', ['get', 'level']], level]
+            ]}
+          style={{
+            fillColor: ["get", "color"],
             fillOpacity: 0.7,
             visibility
-          })} />
+          }} />
 
         <MapboxGL.LineLayer
           id={Constants.LAYER_FLOORS_LINES}
+          aboveLayerID={Constants.LAYER_FLOORS}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "floor"], ["==", "category", "room"], ["==", "level", level]]
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "floor"],
+              ["==", "category", "room"],
+              ["==", "level", level]
+            ] :
+            [
+              'all',
+              ['==', ['get', 'type'], "floor"],
+              ['==', ['get', 'category'], "room"],
+              ['==', ['to-number', ['get', 'level']], level]
+            ]
           }
-          style={StyleSheet.create({
-            lineColor: StyleSheet.identity('color'),
+          style={{
+            lineColor: ['get', 'color'],
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_BASE_FLOOR}
+          aboveLayerID={Constants.LAYER_FLOORS_LINES}
           minZoomLevel={12}
           maxZoomLevel={24}
           filter={
-            [ "all", ["==", "type", "base_floor"], ["==", "level", level]]
+            isIOS ?
+            [
+              "all",
+              ["==", "type", "base_floor"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "base_floor"],
+            ['==', ['to-number', ['get', 'level']], level]
+            ]
           }
-          style={StyleSheet.create({
-            fillColor: StyleSheet.identity('color'),
+          style={{
+            fillColor: ['get', 'color'],
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_ROAD}
+          aboveLayerID={Constants.LAYER_BASE_FLOOR}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "road"], ["==", "level", level]]
-          }
-          style={StyleSheet.create({
-            fillColor: StyleSheet.identity('color'),
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "road"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "road"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
+          style={{
+            fillColor: ['get', 'color'],
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_AREAS}
+          aboveLayerID={Constants.LAYER_ROAD}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "area"], ["==", "level", level]]
-          }
-          style={StyleSheet.create({
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "area"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "area"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
+          style={{
             fillColor: '#80F080',
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_PARKING_BASE}
+          aboveLayerID={Constants.LAYER_AREAS}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "parking_base"], ["==", "level", level]]
-          }
-          style={StyleSheet.create({
-            fillColor: StyleSheet.identity('color'),
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "parking_base"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "parking_base"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
+          style={{
+            fillColor: ['get', 'color'],
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillExtrusionLayer
           id={Constants.LAYER_SHOPS}
+          aboveLayerID={Constants.LAYER_PARKING_BASE}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "shop"], ["==", "level", level]]
-          }
-          style={StyleSheet.create({
-            fillExtrusionColor: StyleSheet.identity('color'),
-            fillExtrusionHeight: StyleSheet.identity('height'),
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "shop"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "shop"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
+          style={{
+            fillExtrusionColor: ['get', 'color'],
+            fillExtrusionHeight: ['to-number', ['get', 'height']],
             fillExtrusionBase: 0.1,
             fillExtrusionOpacity: 0.8,
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_ROOMS}
+          aboveLayerID={Constants.LAYER_SHOPS}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "floor"], ["==", "category", "room"], ["==", "level", level]]
-          }
-          style={StyleSheet.create({
-            fillColor: StyleSheet.identity('color'),
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "floor"],
+              ["==", "category", "room"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "floor"],
+            ['==', ['get', 'category'], "room"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
+          style={{
+            fillColor: ['get', 'color'],
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_HOLES}
+          aboveLayerID={Constants.LAYER_ROOMS}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "hole"], ["==", "level", level]]
-          }
-          style={StyleSheet.create({
-            fillColor: StyleSheet.identity('color'),
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "hole"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "hole"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
+          style={{
+            fillColor: ['get', 'color'],
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillExtrusionLayer
           id={Constants.LAYER_WALLS}
+          aboveLayerID={Constants.LAYER_HOLES}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "wall"], ["==", "level", level]]
-          }
-          style={StyleSheet.create({
-            fillExtrusionColor: StyleSheet.identity('color'),
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "wall"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "wall"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
+          style={{
+            fillExtrusionColor: ['get', 'color'],
             fillExtrusionHeight: 4,
             fillExtrusionBase: 0.1,
             fillExtrusionOpacity: 1,
             visibility
-          })} />
+          }} />
 
         <MapboxGL.SymbolLayer
           id={Constants.LAYER_LEVELCHANGERS}
+          aboveLayerID={Constants.LAYER_HOLES}
           minZoomLevel={16}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "usecase", "levelchanger"], ["<=", "level_min", level], [">=", "level_max", level]]
-          }
-          style={StyleSheet.create({
-            iconImage: StyleSheet.identity('levelchanger'),
-            iconSize: 0.9,
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "usecase", "levelchanger"],
+              ["<=", "level_min", level],
+              [">=", "level_max", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'usecase'], "levelchanger"],
+            ["<=", ['to-number', ['get', 'level_min']], level],
+            [">=", ['to-number', ['get', 'level_max']], level]
+          ]}
+          style={{
+            iconImage: '{levelChanger}',
+            iconSize: 0.8,
             textOffset: [0, 1],
-            textFont: [ "Klokantech Noto Sans Regular" ],
-            textField: StyleSheet.identity('title'),
+            textField: ['get', 'title'],
+            textFont: ['Klokantech Noto Sans Regular'],
             textSize: 14,
             symbolPlacement: 'point',
             iconAllowOverlap: true,
             textAllowOverlap: true,
             visibility
-          })} />
+          }} />
 
         <MapboxGL.FillExtrusionLayer
           id={Constants.LAYER_POLYGONS_ABOVE_PATHS}
+          aboveLayerID={Constants.LAYER_LEVELCHANGERS}
           minZoomLevel={12}
           maxZoomLevel={24}
-          filter={
-            [ "all", ["==", "type", "polygon_above_path"], ["==", "level", 0]]
-          }
-          style={StyleSheet.create({
-            fillExtrusionColor: StyleSheet.identity('color'),
-            fillExtrusionHeight: StyleSheet.identity('height'),
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "polygon_above_path"],
+              [">=", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'type'], "polygon_above_path"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
+          style={{
+            fillExtrusionColor: ['get', 'color'],
+            fillExtrusionHeight: ['to-number', ['get', 'height']],
             fillExtrusionBase: 0.1,
             fillExtrusionOpacity: 0.8,
             visibility
-          })} />
+          }} />
       </MapboxGL.ShapeSource>
     )
   }
@@ -455,7 +598,7 @@ class ProximiioMap {
         id="proximiio-image-source"
         key="proximiio-image-source"
         shape={DummyCollection}
-        images={this.amenityLinks}
+        images={this.amenityBaseLinks}
         maxZoomLevel={28}/>
       )
   }
@@ -519,6 +662,7 @@ class ProximiioMap {
 
     const rasterLayer = this.showRaster ? this.lastFloorLayer : Constants.DEFAULT_BOTTOM_LAYER
     const topLayer = this.showGeoJSON ? Constants.LAYER_HOLES : rasterLayer
+    const visibility = !ignore ? 'visible' : 'none'
 
     return (
       <MapboxGL.ShapeSource
@@ -527,8 +671,8 @@ class ProximiioMap {
         shape={collection}
         cluster={false}
         images={{
-          route_start: this.amenityLinks.route_start,
-          route_finish: this.amenityLinks.route_finish
+          route_start: this.amenityBaseLinks.route_start,
+          route_finish: this.amenityBaseLinks.route_finish
         }}
         minZoomLevel={10}
         maxZoomLevel={24}>
@@ -536,27 +680,34 @@ class ProximiioMap {
         <MapboxGL.SymbolLayer
           id={Constants.LAYER_ROUTING_SYMBOLS}
           aboveLayerID={topLayer}
-          style={StyleSheet.create({
-            iconImage: StyleSheet.identity('icon'),
+          filter={
+            ['==', ['get', 'usecase'], "route-line"]
+          }
+          style={{
+            iconImage: '{icon}',
             iconSize: 1,
             iconAllowOverlap: true
-          })}
-          visibility={ !ignore ? 'visible' : 'none' } />
+          }}
+          visibility={visibility} />
 
         <MapboxGL.LineLayer
           id={Constants.LAYER_ROUTING_LINE}
           minZoomLevel={10}
           maxZoomLevel={24}
           aboveLayerID={topLayer}
-          filter={
-            [ "all", ["==", "usecase", "route-line"] ]
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "usecase", "route-line"],
+            ] :
+            ['==', ['get', 'usecase'], "route-line"]
           }
-          style={StyleSheet.create({
-            lineOpacity: 0.9,
+          style={{
+            lineOpacity: 1,
             lineColor: '#00ee00',
             lineWidth: 12
-          })}
-          visibility={ !ignore ? 'visible' : 'none' } />
+          }}
+          visibility={visibility} />
 
       </MapboxGL.ShapeSource>
     )
@@ -617,23 +768,43 @@ class ProximiioMap {
 
         <MapboxGL.SymbolLayer
           id={Constants.LAYER_USER_MARKER}
-          filter={[ "all", ["==", "usecase", "user-location"], ["==", "level", level] ]}
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "usecase", "user-location"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'usecase'], "user-location"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
           aboveLayerID={topLayer}
-          style={StyleSheet.create({
+          style={{
             iconImage: 'bluedot',
             iconSize: 1,
             iconAllowOverlap: true
-          })}
+          }}
           visibility={hasLocation ? 'visible' : 'none'}/>
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_USER_ACCURACY}
-          filter={[ "all", ["==", "usecase", "user-location-accuracy"], ["==", "level", level] ]}
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "usecase", "user-location-accuracy"],
+              ["==", "level", level]
+            ] :
+            [
+            'all',
+            ['==', ['get', 'usecase'], "user-location-accuracy"],
+            ['==', ['to-number', ['get', 'level']], level]
+          ]}
           aboveLayerID={topLayer}
-          style={StyleSheet.create({
+          style={{
             fillColor: '#0080c0',
             fillOpacity: 0.3
-          })}
+          }}
           visibility={hasLocation ? 'visible' : 'none'} />
       </MapboxGL.ShapeSource>
     )
