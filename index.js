@@ -75,7 +75,12 @@ class ProximiioMap {
     this.showGeoJSON = true
     this.showRaster = true
     this.showPOI = true
-    this.lastFloorLayer = Constants.DEFAULT_BOTTOM_LAYER
+    this.bottomLayer = Constants.DEFAULT_BOTTOM_LAYER
+    this.lastFloorLayer = this.bottomLayer
+  }
+
+  get DEFAULT_BOTTOM_LAYER() {
+    return Constants.DEFAULT_BOTTOM_LAYER
   }
 
   cancelFeaturesFiltering() {
@@ -99,7 +104,8 @@ class ProximiioMap {
 
     this.floors = await fetch(floorsURL, { headers: { authorization: `Bearer ${TOKEN}` }} ).then(jsonize)
     this.features = await fetch(featuresURL).then(jsonize)
-    this.filteredFeatures = this.features
+    console.log('features', this.features.features)
+    this.filteredFeatures = [...this.features.features]
     this.style = await fetch(this.styleURL).then(jsonize)
     this.amenities = await fetch(amenitiesURL).then(jsonize)
 
@@ -176,7 +182,7 @@ class ProximiioMap {
 
   get sortedPOIs() {
     if (!poiCache) {
-      poiCache = this.filteredFeatures.features
+      poiCache = this.filteredFeatures
         .filter(feature => feature.properties.usecase === 'poi')
         .sort((a, b) => a.properties.title > b.properties.title ? -1 : 1)
         .sort((a, b) => a.properties.level > b.properties.level ? 1 : -1)
@@ -189,7 +195,7 @@ class ProximiioMap {
     if (typeof this.featureCache[cacheKey] === 'undefined') {
       this.featureCache[cacheKey] = {
         type: 'FeatureCollection',
-        features: this.filteredFeatures.features.filter(f => {
+        features: this.filteredFeatures.filter(f => {
           if ((isPoi && f.properties.usecase !== 'poi') || (!isPoi && f.properties.usecase === 'poi')) {
             return false
           }
@@ -233,7 +239,7 @@ class ProximiioMap {
           url={ floor.floorplan_image_url }>
           <MapboxGL.RasterLayer
             id={layer}
-            aboveLayerID={Constants.DEFAULT_BOTTOM_LAYER}
+            aboveLayerID={this.bottomLayer}
             minZoomLevel={12}
             style={{
               visibility
@@ -242,7 +248,7 @@ class ProximiioMap {
       )
     })
 
-    this.lastFloorLayer = layers.length > 0 ? layers[layers.length - 1] : Constants.DEFAULT_BOTTOM_LAYER
+    this.lastFloorLayer = layers.length > 0 ? layers[layers.length - 1] : this.bottomLayer
     return sources
   }
 
@@ -312,7 +318,7 @@ class ProximiioMap {
   }
 
   shapeSourceForLevel(level) {
-    const topLayer = this.showRaster ? this.lastFloorLayer : Constants.DEFAULT_BOTTOM_LAYER
+    const topLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
     const visibility = this.showGeoJSON ? 'visible' : 'none'
 
     return (
@@ -674,7 +680,7 @@ class ProximiioMap {
       }
     }
 
-    const rasterLayer = this.showRaster ? this.lastFloorLayer : Constants.DEFAULT_BOTTOM_LAYER
+    const rasterLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
     const topLayer = this.showGeoJSON ? Constants.LAYER_HOLES : rasterLayer
     const visibility = !ignore ? 'visible' : 'none'
 
@@ -765,7 +771,7 @@ class ProximiioMap {
       }
     }
 
-    const topRasterLayer = this.showRaster ? this.lastFloorLayer : Constants.DEFAULT_BOTTOM_LAYER
+    const topRasterLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
     const topLayer = this.showGeoJSON ? Constants.LAYER_POLYGONS_ABOVE_PATHS : topRasterLayer
 
     return (
