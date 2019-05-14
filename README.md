@@ -278,7 +278,7 @@ In the `Build Settings` of your application target search for `FRAMEWORK_SEARCH_
 
 ![](https://s3.systemlevel.com/docs-public/frameworksearch.png)
 
-Add `$(PROJECT_DIR)/../node_modules/proximiio-react-native-ios/ios` and `$(PROJECT_DIR)/../node_modules/@react-native-mapbox/maps/ios` non-recursive to your `Framework Search Paths`.
+Add `$(PROJECT_DIR)/../node_modules/proximiio-react-native-ios/ios/ProximiioNative` and `$(PROJECT_DIR)/../node_modules/@react-native-mapbox/maps/ios` non-recursive to your `Framework Search Paths`.
 
 ![](https://s3.systemlevel.com/docs-public/frameworksearchadd.png)
 
