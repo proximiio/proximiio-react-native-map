@@ -15,6 +15,6 @@
     "react-native": "^0.41.2"
   },
   "dependencies": {
-    "@react-native-mapbox/maps": "git://github.com/react-native-mapbox/maps.git"
+    "@react-native-mapbox/maps": "git://github.com/proximiio/maps.git"
   }
 }

@@ -3,7 +3,8 @@
 
 ## Getting started
 
-Install Proximiio React Native Core and Map plugins:
+Install Proximiio React Native Core and Map plugins, React Native Mapbox will be installed
+as proximiio-react-native-map depdendency from custom fork.
 
 ```
 npm i -s https://github.com/proximiio/proximiio-react-native-core
@@ -51,6 +52,7 @@ We want to be on `28` or higher:
 buildscript {
     ext {
         buildToolsVersion = "28.0.3"
+        minSdkVersion = 20
         compileSdkVersion = 28
         targetSdkVersion = 28
     }
@@ -61,8 +63,8 @@ buildscript {
 
 Add following to the file:
 
+```
 android {
-    ```
     packagingOptions {
         exclude 'META-INF/LICENSE'
         exclude 'META-INF/LICENSE-FIREBASE.txt'
@@ -77,19 +79,12 @@ android {
 }
 
 repositories {
-    maven {
-        url "http://proximi-io.bintray.com/proximiio-android"
-    }
-    maven {
-        url "http://indooratlas-ltd.bintray.com/mvn-public"
-    }
-    maven {
-        url 'https://maven.google.com'
-    }
+    maven { url "http://proximi-io.bintray.com/proximiio-android" }
+    maven { url "http://indooratlas-ltd.bintray.com/mvn-public" }
+    maven { url 'https://maven.google.com' }
 }
 
 dependencies {
-    ```
     implementation("androidx.core:core:1.0.1")
     implementation("androidx.versionedparcelable:versionedparcelable:1.0.0")
     implementation("androidx.collection:collection:1.0.0")
@@ -97,8 +92,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime:2.0.0")
     implementation("androidx.lifecycle:lifecycle-common:2.0.0")
     implementation("androidx.arch.core:core-common:2.0.0")
-    implementation project(':react-native-mapbox/maps')
+    implementation project(':android-mapbox-react-native-mapbox-gl')
+    implementation project(':proximiio-react-native-core')
+    implementation 'io.proximi.proximiiolibrary:proximiiolibrary:2.8.3'
 }
+```
 
 You can set the Support Library version or the okhttp version if you use other modules that depend on them:
 * `supportLibVersion "28.0.0"`
@@ -112,8 +110,11 @@ Include project, so gradle knows where to find the project
 ```diff
 rootProject.name = <YOUR_PROJECT_NAME>
 
-+include ':@react-native-mapbox_maps'
-+project(':@react-native-mapbox_maps').projectDir = new File(rootProject.projectDir, '../node_modules/@react-native-mapbox/maps/android/rctmgl')
+include ':android-mapbox-react-native-mapbox-gl'
+project(':android-mapbox-react-native-mapbox-gl').projectDir = new File(rootProject.projectDir, '../node_modules/@react-native-mapbox/maps/android/rctmgl')
+
+include ':proximiio-react-native-core'
+project(':proximiio-react-native-core').projectDir = new File(rootProject.projectDir, '../node_modules/proximiio-react-native-core/android')
 
 include ':app'¬
 ```
@@ -121,12 +122,6 @@ include ':app'¬
 ## `PROJECT_ROOT/android/app/src/main/java/com/YOUR_PROJECT_NAME/MainApplication.java`
 
 We need to register both proximiio and mapbox packages
-
-Add:
-```
-import com.mapbox.rctmgl.RCTMGLPackage;
-import io.proximi.react.RNProximiioReactPackage;
-```
 
 ```diff
 package <YOUR_PROJECT_NAME>;
