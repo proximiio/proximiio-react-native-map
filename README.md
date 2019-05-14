@@ -3,13 +3,26 @@
 
 ## Getting started
 
-1. Install Proximiio React Native Map plugin:
+Install Proximiio React Native Core and Map plugins:
 
 ```
+npm i -s https://github.com/proximiio/proximiio-react-native-core
 npm i -s https://github.com/proximiio/proximiio-react-native-map
 ```
 
 ## Installation Guide / Android
+
+## `PROJECT_ROOT/android/app/src/main/AndroidManifest.xml`
+Remove android:allowBackup field or use tools:override if you need the option.
+
+## `PROJECT_ROOT/android/gradle.properties`
+Edit file to include following:
+
+```
+android.useAndroidX=true
+android.enableJetifier=true
+```
+
 
 ## `PROJECT_ROOT/android/build.gradle`
 We need to add an additional repository in order to get our dependencies.
@@ -45,18 +58,47 @@ buildscript {
 ```
 
 ## `PROJECT_ROOT/android/app/build.gradle`
-### PRE RN 59
 
-Add project under `dependencies`
+Add following to the file:
 
-```diff
-dependencies {
-    implementation fileTree(dir: "libs", include: ["*.jar"])
-    implementation "com.android.support:appcompat-v7:${rootProject.ext.supportLibVersion}"
-    implementation "com.facebook.react:react-native:+"  // From node_modules
-+   implementation project(':react-native-mapbox/maps')
+android {
+    ```
+    packagingOptions {
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE-FIREBASE.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'lib/armeabi/libcpaJNI.so'
+        exclude 'lib/armeabi/libsqlcipher.so'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
-```
+
+repositories {
+    maven {
+        url "http://proximi-io.bintray.com/proximiio-android"
+    }
+    maven {
+        url "http://indooratlas-ltd.bintray.com/mvn-public"
+    }
+    maven {
+        url 'https://maven.google.com'
+    }
+}
+
+dependencies {
+    ```
+    implementation("androidx.core:core:1.0.1")
+    implementation("androidx.versionedparcelable:versionedparcelable:1.0.0")
+    implementation("androidx.collection:collection:1.0.0")
+    implementation("androidx.annotation:annotation:1.0.0")
+    implementation("androidx.lifecycle:lifecycle-runtime:2.0.0")
+    implementation("androidx.lifecycle:lifecycle-common:2.0.0")
+    implementation("androidx.arch.core:core-common:2.0.0")
+    implementation project(':react-native-mapbox/maps')
+}
 
 You can set the Support Library version or the okhttp version if you use other modules that depend on them:
 * `supportLibVersion "28.0.0"`
@@ -78,11 +120,13 @@ include ':app'¬
 
 ## `PROJECT_ROOT/android/app/src/main/java/com/YOUR_PROJECT_NAME/MainApplication.java`
 
-We need to register our package
+We need to register both proximiio and mapbox packages
 
-Add `import com.mapbox.rctmgl.RCTMGLPackage;`
-as an import statement and
-`new RCTMGLPackage()` within the `getPackages()` method
+Add:
+```
+import com.mapbox.rctmgl.RCTMGLPackage;
+import io.proximi.react.RNProximiioReactPackage;
+```
 
 ```diff
 package <YOUR_PROJECT_NAME>;
@@ -95,11 +139,13 @@ import com.facebook.react.ReactPackage;
 import com.facebook.react.shell.MainReactPackage;
 import com.facebook.soloader.SoLoader;
 +import com.mapbox.rctmgl.RCTMGLPackage;
++import io.proximi.react.RNProximiioReactPackage;
 
 import java.util.Arrays;
 import java.util.List;
 
 public class MainApplication extends Application implements ReactApplication {
++  private RNProximiioReactPackage proximiioPackage = new RNProximiioReactPackage();
 
   private final ReactNativeHost mReactNativeHost = new ReactNativeHost(this) {
     @Override
@@ -111,7 +157,8 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
-+         new RCTMGLPackage()
++         new RCTMGLPackage(),
++         proximiioPackage
       );
     }
 
