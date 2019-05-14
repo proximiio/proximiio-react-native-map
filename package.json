@@ -1,6 +1,6 @@
 {
   "name": "proximiio-react-native-map",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Proximi.io React Native Map Plugin",
   "main": "index.js",
   "scripts": {
@@ -13,5 +13,8 @@
   "license": "UNSPECIFIED",
   "peerDependencies": {
     "react-native": "^0.41.2"
+  },
+  "dependencies": {
+    "@react-native-mapbox/maps": "git://github.com/react-native-mapbox/maps.git"
   }
 }

@@ -63,6 +63,7 @@ class ProximiioMap {
     this.amenityMap = {}
     this.amenityLinks = {}
     this.features = Object.assign({}, DummyCollection)
+    this.filteredFeatures = Object.assign({}, DummyCollection)
     this.featureCache = {}
     this.layerCache = {}
     this.listeners = []
@@ -77,6 +78,18 @@ class ProximiioMap {
     this.lastFloorLayer = Constants.DEFAULT_BOTTOM_LAYER
   }
 
+  cancelFeaturesFiltering() {
+    this.filteredFeatures = this.features
+  }
+
+  filterFeaturesByIds(featureIds) {
+    this.filteredFeatures = this.features.filter(f => featureIds.includes(f.properties.id))
+  }
+
+  filterFeaturesByAmenities(amenityIds) {
+    this.filteredFeatures = this.features.filter(f => amenityIds.includes(f.properties.amenity))
+  }
+
   async authorize(token) {
     TOKEN = token
 
@@ -86,6 +99,7 @@ class ProximiioMap {
 
     this.floors = await fetch(floorsURL, { headers: { authorization: `Bearer ${TOKEN}` }} ).then(jsonize)
     this.features = await fetch(featuresURL).then(jsonize)
+    this.filteredFeatures = this.features
     this.style = await fetch(this.styleURL).then(jsonize)
     this.amenities = await fetch(amenitiesURL).then(jsonize)
 
@@ -162,7 +176,7 @@ class ProximiioMap {
 
   get sortedPOIs() {
     if (!poiCache) {
-      poiCache = this.features.features
+      poiCache = this.filteredFeatures.features
         .filter(feature => feature.properties.usecase === 'poi')
         .sort((a, b) => a.properties.title > b.properties.title ? -1 : 1)
         .sort((a, b) => a.properties.level > b.properties.level ? 1 : -1)
@@ -175,7 +189,7 @@ class ProximiioMap {
     if (typeof this.featureCache[cacheKey] === 'undefined') {
       this.featureCache[cacheKey] = {
         type: 'FeatureCollection',
-        features: this.features.features.filter(f => {
+        features: this.filteredFeatures.features.filter(f => {
           if ((isPoi && f.properties.usecase !== 'poi') || (!isPoi && f.properties.usecase === 'poi')) {
             return false
           }
