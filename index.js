@@ -1,8 +1,8 @@
-import React, { Component, Headers } from 'react'
+import React from 'react'
 import MapboxGL  from '@react-native-mapbox/maps'
 import Proximiio from 'proximiio-react-native-core'
 import Constants from './constants'
-import { Platform } from 'react-native';
+import { Platform, PixelRatio } from 'react-native';
 
 const isIOS = Platform.OS === 'ios'
 
@@ -65,7 +65,7 @@ class ProximiioMap {
     this.amenityMap = {}
     this.amenityLinks = {}
     this.features = Object.assign({}, DummyCollection)
-    this.filteredFeatures = Object.assign({}, DummyCollection)
+    this.filteredFeatures = []
     this.featureCache = {}
     this.layerCache = {}
     this.listeners = []
@@ -82,6 +82,9 @@ class ProximiioMap {
     this.userMarkerImage = blueDot
     this.routingStartImage = null
     this.routingFinishImage = null
+    this.iconSize = 3 / PixelRatio.get()
+    this.imagesIteration = 0
+    this.images = {}
   }
 
   get DEFAULT_BOTTOM_LAYER() {
@@ -89,15 +92,15 @@ class ProximiioMap {
   }
 
   cancelFeaturesFiltering() {
-    this.filteredFeatures = this.features
-  }
+    this.filteredFeatures = this.features.features
+  }of
 
   filterFeaturesByIds(featureIds) {
-    this.filteredFeatures = this.features.filter(f => featureIds.includes(f.properties.id))
+    this.filteredFeatures = this.features.features.filter(f => featureIds.includes(f.properties.id))
   }
 
   filterFeaturesByAmenities(amenityIds) {
-    this.filteredFeatures = this.features.filter(f => amenityIds.includes(f.properties.amenity))
+    this.filteredFeatures = this.features.features.filter(f => amenityIds.includes(f.properties.amenity))
   }
 
   async authorize(token) {
@@ -115,9 +118,6 @@ class ProximiioMap {
     this.amenityLinks = {}
     this.amenityBaseLinks = {}
 
-    this.routingStartImage = this.amenityBaseLinks.route_start
-    this.routingFinishImage = this.amenityBaseLinks.route_finish
-
     this.amenityMap = this.amenities.reduce((acc, item) => {
       if (item.icon && item.icon.match(/data:image/)) {
         acc[item.id] = item.icon
@@ -126,6 +126,11 @@ class ProximiioMap {
       }
       return acc
     }, {})
+
+    this.routingStartImage = this.amenityBaseLinks.route_start
+    this.routingFinishImage = this.amenityBaseLinks.route_finish
+
+    this.updateImages()
 
     this.loaded = true
 
@@ -201,7 +206,11 @@ class ProximiioMap {
     if (typeof this.featureCache[cacheKey] === 'undefined') {
       this.featureCache[cacheKey] = {
         type: 'FeatureCollection',
-        features: this.filteredFeatures.filter(f => {
+        features: (isPoi ? this.filteredFeatures : this.features.features).filter(f => {
+          if (!f.properties) {
+            return false
+          }
+
           if ((isPoi && f.properties.usecase !== 'poi') || (!isPoi && f.properties.usecase === 'poi')) {
             return false
           }
@@ -214,7 +223,6 @@ class ProximiioMap {
         })
       }
     }
-
     return this.featureCache[cacheKey]
   }
 
@@ -266,12 +274,13 @@ class ProximiioMap {
         id={Constants.SOURCE_POI}
         key={Constants.SOURCE_POI}
         shape={this.featuresForLevel(level, true)}
-        maxZoomLevel={24}>
+        minZoomLevel={10}
+        maxZoomLevel={30}>
 
       <MapboxGL.SymbolLayer
         id={Constants.LAYER_POIS_ICONS}
-        minZoomLevel={16}
-        maxZoomLevel={24}
+        minZoomLevel={14}
+        maxZoomLevel={30}
         filter={isIOS ?
           [
             'all',
@@ -286,16 +295,16 @@ class ProximiioMap {
         }
         style={{
           iconImage: '{amenity}',
-          iconSize: 0.4,
+          iconSize: this.iconSize,
           symbolPlacement: 'point',
           iconAllowOverlap: true,
-          textAllowOverlap: true,
+          textAllowOverlap: false,
           visibility
         }} />
 
       <MapboxGL.SymbolLayer
         id={Constants.LAYER_POIS_LABELS}
-        minZoomLevel={18}
+        minZoomLevel={16}
         maxZoomLevel={24}
         filter={isIOS ?
           [
@@ -312,10 +321,8 @@ class ProximiioMap {
         style={{
           textOffset: [0, 2],
           textField: ['get', 'title'],
-          textFont: ['Klokantech Noto Sans Regular'],
           textSize: 14,
           symbolPlacement: 'point',
-          iconAllowOverlap: true,
           textAllowOverlap: false,
           visibility
         }} />
@@ -580,10 +587,9 @@ class ProximiioMap {
           ]}
           style={{
             iconImage: '{levelChanger}',
-            iconSize: 0.8,
+            iconSize: this.iconSize,
             textOffset: [0, 1],
             textField: ['get', 'title'],
-            textFont: ['Klokantech Noto Sans Regular'],
             textSize: 14,
             symbolPlacement: 'point',
             iconAllowOverlap: true,
@@ -618,14 +624,40 @@ class ProximiioMap {
     )
   }
 
+  updateImages () {
+    const amenityIds = new Set(
+      this.features.features.filter(f => f.properties && f.properties.usecase === 'poi' && f.properties.amenity)
+                            .map(f => f.properties.amenity)
+    )
+
+    const images = {}
+
+    amenityIds.forEach(id => {
+      images[id] = this.amenityBaseLinks[id]
+    })
+
+    images.bluedot = { uri: this.userMarkerImage }
+
+    images[Constants.IMAGE_ROUTING_START] = this.routingStartImage
+    images[Constants.IMAGE_ROUTING_FINISH] = this.routingFinishImage
+
+    this.images = images
+    this.imagesIteration++
+  }
+
   imageSource() {
+    if (!this.loaded) {
+      return null
+    }
+
     return (
       <MapboxGL.ShapeSource
         id="proximiio-image-source"
-        key="proximiio-image-source"
+        key={`proximiio-image-source-${this.imagesIteration}`}
         shape={DummyCollection}
-        images={this.amenityBaseLinks}
-        maxZoomLevel={28}/>
+        images={this.images}
+        minZoomLevel={1}
+        maxZoomLevel={30}/>
       )
   }
 
@@ -689,16 +721,12 @@ class ProximiioMap {
     const rasterLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
     const topLayer = this.showGeoJSON ? Constants.LAYER_HOLES : rasterLayer
     const visibility = !ignore ? 'visible' : 'none'
-    const images = {}
-    images[Constants.IMAGE_ROUTING_START] = this.routingStartImage
-    images[Constants.IMAGE_ROUTING_FINISH] = this.routingFinishImage
 
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_ROUTING}
         key={Constants.SOURCE_ROUTING}
         shape={collection}
-        images={images}
         cluster={false}
         minZoomLevel={10}
         maxZoomLevel={24}>
@@ -711,7 +739,7 @@ class ProximiioMap {
           }
           style={{
             iconImage: '{icon}',
-            iconSize: 1,
+            iconSize: this.iconSize,
             iconAllowOverlap: true
           }}
           visibility={visibility} />
@@ -786,9 +814,6 @@ class ProximiioMap {
         key={Constants.SOURCE_USER_LOCATION}
         shape={collection}
         cluster={false}
-        images={{
-          bluedot: { uri: this.userMarkerImage }
-        }}
         minZoomLevel={1}
         maxZoomLevel={24}>
 
@@ -808,7 +833,7 @@ class ProximiioMap {
           aboveLayerID={topLayer}
           style={{
             iconImage: 'bluedot',
-            iconSize: 0.5,
+            iconSize: this.iconSize,
             iconAllowOverlap: true,
             iconPitchAlignment: 'map'
           }}
