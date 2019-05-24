@@ -16,6 +16,7 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## `PROJECT_ROOT/android/app/src/main/AndroidManifest.xml`
 Remove android:allowBackup field or use tools:override if you need the option.
+Add option android:launchMode="singleTask" into <activity> tag to prevent map redraws when coming from background
 
 ## `PROJECT_ROOT/android/gradle.properties`
 Edit file to include following:
@@ -324,44 +325,62 @@ async initMapData() {
 in component render:
 
 ```
-<MapboxGL.MapView
-	ref={c => (this._map = c)}
-	zoomLevel={16}
-	centerCoordinate={this.state.mapLocation}
-	style={styles.matchParent}
-	styleURL={ProximiioMap.styleURL}>
+MapboxGL.setAccessToken(MAPBOX_TOKEN) // authorize with mapbox token
 
-	{ ProximiioMap.indoorSources(this.state.level, this.state.showFloorplan, this.state.showGeoJSON) }
+// see more MapView & Camera component options at https://github.com/proximiio/maps
+
+<MapboxGL.MapView
+  ref={c => (this._map = c)}
+  styleURL={ProximiioMap.styleURL}> // or mapbox style url
+
+  <MapboxGL.Camera
+    zoomLevel={this.state.zoom}
+    pitch={0}
+    animationMode="easeTo" // easeTo / flyTo / moveTo
+    centerCoordinate={this.state.mapLocation}
+  />
+  { ProximiioMap.indoorSources(this.state.level, showFloorplan, showGeoJSON) }
 </MapboxGL.MapView>
 ```
 
 request routing:
-
-```
+```js
 ProximiioMap.routeTo([lng, lat], targetLevel)
 ```
 
 cancel routing:
-```
+```js
 ProximiioMap.cancelRoute()
 ```
 
 POI access:
-```
+```js
 ProximiioMap.sortedPOIs
 ```
 
 Filter Features by IDs:
-```
+```js
 ProximiioMap.filterFeaturesByIds([featureId1, featureId2])
+this.forceUpdate() // optional: update component containing mapView to redraw immediately
 ```
 
 Filter Features by Amenities:
-```
+```js
 ProximiioMap.filterFeaturesByAmenities([amenityId1, amenityId2])
+this.forceUpdate() // optional: update component containing mapView to redraw immediately
 ```
 
 Cancel feature filtering:
-```
+```js
 ProximiioMap.cancelFeaturesFiltering()
+this.forceUpdate() // optional: update component containing mapView to redraw immediately
+```
+
+POI Interaction:
+```js
+
+// feature is GeoJSON Point object
+ProximiioMap.on('press:poi', (feature) => {
+  console.log(`POI Press: ${feature.properties.title}`)
+})
 ```

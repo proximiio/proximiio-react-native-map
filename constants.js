@@ -32,7 +32,7 @@ export default {
   FEATURE_ROUTING_FINISH: "proximiio-routing_finish-feature",
   IMAGE_USER_MARKER: "proximiio-blue_dot-image",
   IMAGE_ROUTING_START: "proximiio-routing_start-image",
-  IMAGE_ROUTING_FINISH: "proximiio-routing_start-image",
+  IMAGE_ROUTING_FINISH: "proximiio-routing_finish-image",
 
   GEOJSON_POLYGON: 'Polygon',
   GEOJSON_POINT: 'Point',

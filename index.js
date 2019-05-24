@@ -2,7 +2,8 @@ import React from 'react'
 import MapboxGL  from '@react-native-mapbox/maps'
 import Proximiio from 'proximiio-react-native-core'
 import Constants from './constants'
-import { Platform, PixelRatio } from 'react-native';
+import { View, Platform, PixelRatio } from 'react-native';
+import nearestPointOnLine from '@turf/nearest-point-on-line'
 
 const isIOS = Platform.OS === 'ios'
 
@@ -14,7 +15,7 @@ const blueDot = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAA0CAYAAADFe
 const jsonize = response => response.json()
 const compareLatLngCoordinates = (a, b) => a[0] === b[0] && a[1] === b[1]
 
-var createGeoJSONCircle = function(center, radiusInKm, points) {
+const createGeoJSONCircle = (center, radiusInKm, points) => {
   if(!points) points = 64;
 
   var coords = {
@@ -57,8 +58,27 @@ const DummyCollection = {
 let TOKEN = null
 let poiCache = null
 
+class LayerContainer extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = {
+      updatedAt: new Date().getTime()
+    }
+  }
+
+  render() {
+    return this.props.children
+  }
+}
+
 class ProximiioMap {
   constructor() {
+    this.setDefaults()
+    this.onPoiPress = this.onPoiPress.bind(this)
+    this.skipPoiPress = false
+  }
+
+  setDefaults() {
     this.loaded = false
     this.style = null
     this.amenities = []
@@ -85,22 +105,30 @@ class ProximiioMap {
     this.iconSize = 3 / PixelRatio.get()
     this.imagesIteration = 0
     this.images = {}
+    this.font = "Klokantech Noto Sans Regular"
   }
 
   get DEFAULT_BOTTOM_LAYER() {
     return Constants.DEFAULT_BOTTOM_LAYER
   }
 
+  destroy() {
+    this.setDefaults()
+  }
+
   cancelFeaturesFiltering() {
     this.filteredFeatures = this.features.features
-  }of
+    this.featureCache = {}
+  }
 
   filterFeaturesByIds(featureIds) {
     this.filteredFeatures = this.features.features.filter(f => featureIds.includes(f.properties.id))
+    this.featureCache = {}
   }
 
   filterFeaturesByAmenities(amenityIds) {
     this.filteredFeatures = this.features.features.filter(f => amenityIds.includes(f.properties.amenity))
+    this.featureCache = {}
   }
 
   async authorize(token) {
@@ -154,6 +182,7 @@ class ProximiioMap {
     if (floor !== null) {
       this.level = floor.level
     }
+    this.updateImages()
   }
 
   get styleURL() {
@@ -174,8 +203,13 @@ class ProximiioMap {
     const levelFinish = level
     const url = `${GEO_API_ROOT}/route/${lngStart},${latStart},${levelStart}%3B${lngFinish},${latFinish},${levelFinish}?token=${TOKEN}`
     try {
-      this.route = await fetch(url).then(jsonize)
-      this.notify('route:change', this.route)
+      const route = await fetch(url).then(jsonize)
+      if (!route.levelPaths) {
+        return null
+      }
+
+      this.route = route
+      this.notify('route:change', route)
       return this.route
     } catch (e) {
       console.error('received error route response', e)
@@ -266,19 +300,30 @@ class ProximiioMap {
     return sources
   }
 
+  onPoiPress(event, b) {
+    if (!this.skipPoiPress) {
+      this.notify('press:poi', event.nativeEvent.payload)
+      this.skipPoiPress = true
+      setTimeout(() => {
+        this.skipPoiPress = false
+      }, 100)
+    }
+  }
+
   poiSourceForLevel(level) {
     const visibility = this.showPOI ? 'visible' : 'none'
-
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_POI}
         key={Constants.SOURCE_POI}
         shape={this.featuresForLevel(level, true)}
+        onPress={this.onPoiPress}
         minZoomLevel={10}
         maxZoomLevel={30}>
 
       <MapboxGL.SymbolLayer
         id={Constants.LAYER_POIS_ICONS}
+        key={Constants.LAYER_POIS_ICONS}
         minZoomLevel={14}
         maxZoomLevel={30}
         filter={isIOS ?
@@ -304,13 +349,14 @@ class ProximiioMap {
 
       <MapboxGL.SymbolLayer
         id={Constants.LAYER_POIS_LABELS}
+        key={Constants.LAYER_POIS_LABELS}
         minZoomLevel={16}
-        maxZoomLevel={24}
+        maxZoomLevel={30}
         filter={isIOS ?
           [
             'all',
             ['==', 'usecase', "poi"],
-            ['==', 'level', level]
+            ['==', 'level', -1]
           ] :
           [
             'all',
@@ -322,6 +368,7 @@ class ProximiioMap {
           textOffset: [0, 2],
           textField: ['get', 'title'],
           textSize: 14,
+          textFont: [this.font],
           symbolPlacement: 'point',
           textAllowOverlap: false,
           visibility
@@ -333,12 +380,13 @@ class ProximiioMap {
   shapeSourceForLevel(level) {
     const topLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
     const visibility = this.showGeoJSON ? 'visible' : 'none'
+    const collection = this.featuresForLevel(level, false)
 
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_GEOJSON_FLOORPLAN}
         key={Constants.SOURCE_GEOJSON_FLOORPLAN}
-        shape={this.featuresForLevel(level, false)}
+        shape={collection}
         maxZoomLevel={24}>
 
         <MapboxGL.FillLayer
@@ -570,8 +618,8 @@ class ProximiioMap {
         <MapboxGL.SymbolLayer
           id={Constants.LAYER_LEVELCHANGERS}
           aboveLayerID={Constants.LAYER_HOLES}
-          minZoomLevel={16}
-          maxZoomLevel={24}
+          minZoomLevel={14}
+          maxZoomLevel={30}
           filter={isIOS ?
             [
               "all",
@@ -581,12 +629,10 @@ class ProximiioMap {
             ] :
             [
             'all',
-            ['==', ['get', 'usecase'], "levelchanger"],
-            ["<=", ['to-number', ['get', 'level_min']], level],
-            [">=", ['to-number', ['get', 'level_max']], level]
+            ['==', ['get', 'usecase'], "levelchanger"]
           ]}
           style={{
-            iconImage: '{levelChanger}',
+            iconImage: '{levelchanger}',
             iconSize: this.iconSize,
             textOffset: [0, 1],
             textField: ['get', 'title'],
@@ -629,11 +675,14 @@ class ProximiioMap {
       this.features.features.filter(f => f.properties && f.properties.usecase === 'poi' && f.properties.amenity)
                             .map(f => f.properties.amenity)
     )
-
     const images = {}
 
     amenityIds.forEach(id => {
       images[id] = this.amenityBaseLinks[id]
+    })
+
+    this.amenities.filter(a => a.category === 'levelchangers').forEach(amenity => {
+      images[amenity.id] = { uri: amenity.icon }
     })
 
     images.bluedot = { uri: this.userMarkerImage }
@@ -664,9 +713,10 @@ class ProximiioMap {
   routingSource(level) {
     let ignore = false
     let path = null
+
     if (!this.route) {
       ignore = true
-    } else {
+    } else if (this.route.levelPaths) {
       path = this.route.levelPaths[level]
     }
 
@@ -721,7 +771,6 @@ class ProximiioMap {
     const rasterLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
     const topLayer = this.showGeoJSON ? Constants.LAYER_HOLES : rasterLayer
     const visibility = !ignore ? 'visible' : 'none'
-
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_ROUTING}
@@ -734,13 +783,19 @@ class ProximiioMap {
         <MapboxGL.SymbolLayer
           id={Constants.LAYER_ROUTING_SYMBOLS}
           aboveLayerID={topLayer}
-          filter={
-            ['==', ['get', 'usecase'], "route-line"]
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "usecase", "route-symbol"]
+            ] :
+            ['==', ['get', 'usecase'], "route-symbol"]
           }
           style={{
             iconImage: '{icon}',
             iconSize: this.iconSize,
-            iconAllowOverlap: true
+            symbolPlacement: 'point',
+            iconAllowOverlap: true,
+            textAllowOverlap: false
           }}
           visibility={visibility} />
 
@@ -770,7 +825,12 @@ class ProximiioMap {
   userPositionSource(level) {
     const hasLocation = this.currentLocation !== null
     const userLocation = hasLocation ? [ this.currentLocation.lng, this.currentLocation.lat ] : [0, 0]
-    const coordinates = this.route ? this.route.nearestPoint.geometry.coordinates : userLocation
+    let coordinates = userLocation
+
+    if (this.route) {
+      coordinates = nearestPointOnLine(this.route.levelPaths[level], coordinates).geometry.coordinates
+    }
+
     const accuracy = hasLocation ? this.currentLocation.accuracy / 1000 : 0
 
     let collection = DummyCollection
