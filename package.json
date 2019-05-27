@@ -13,5 +13,8 @@
   "license": "UNSPECIFIED",
   "peerDependencies": {
     "react-native": "^0.41.2"
+  },
+  "dependencies": {
+    "@turf/nearest-point-on-line": "^6.0.2"
   }
 }
