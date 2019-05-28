@@ -12,6 +12,11 @@ npm i -s https://github.com/proximiio/proximiio-react-native-core
 npm i -s https://github.com/proximiio/proximiio-react-native-map
 ```
 
+## ChangeLog
+
+### Release 0.2.7
+- added optional accessibility argument to routeTo method
+
 ## Installation Guide / Android
 
 ## `PROJECT_ROOT/android/app/src/main/AndroidManifest.xml`
@@ -345,7 +350,8 @@ MapboxGL.setAccessToken(MAPBOX_TOKEN) // authorize with mapbox token
 
 request routing:
 ```js
-ProximiioMap.routeTo([lng, lat], targetLevel)
+ProximiioMap.routeTo([lng, lat], targetLevel, accessibility)
+// accessibility is optional boolean value
 ```
 
 cancel routing:
