@@ -189,7 +189,7 @@ class ProximiioMap {
     return `${GEO_API_ROOT}/style?token=${TOKEN}&expr=false&basic=true`
   }
 
-  async routeTo(coordinates, level) {
+  async routeTo(coordinates, level, accessibility = false) {
     if (this.currentLocation === null) {
       //console.log('routing not possible, current location (source) not available')
       return
@@ -201,7 +201,7 @@ class ProximiioMap {
     const lngFinish = coordinates[0]
     const latFinish = coordinates[1]
     const levelFinish = level
-    const url = `${GEO_API_ROOT}/route/${lngStart},${latStart},${levelStart}%3B${lngFinish},${latFinish},${levelFinish}?token=${TOKEN}`
+    const url = `${GEO_API_ROOT}/route/${lngStart},${latStart},${levelStart}%3B${lngFinish},${latFinish},${levelFinish}?token=${TOKEN}&accessibility=${accessibility}`
     try {
       const route = await fetch(url).then(jsonize)
       if (!route.levelPaths) {
