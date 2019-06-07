@@ -111,6 +111,8 @@ class ProximiioMap {
       lineColor: '#00ee00',
       lineWidth: 12
     }
+    this.singleLevel = true
+    this.showLevelChangers = false
   }
 
   get DEFAULT_BOTTOM_LAYER() {
@@ -649,7 +651,7 @@ class ProximiioMap {
             symbolPlacement: 'point',
             iconAllowOverlap: true,
             textAllowOverlap: true,
-            visibility
+            visibility: this.showLevelChangers ? 'visible' : 'none'
           }} />
 
         <MapboxGL.FillExtrusionLayer
@@ -729,7 +731,7 @@ class ProximiioMap {
     if (!this.route) {
       ignore = true
     } else if (this.route.levelPaths) {
-      path = this.route.levelPaths[level]
+      path = this.singleLevel ? this.route.linestring.path : this.route.levelPaths[level]
     }
 
     if (!path) {
@@ -751,7 +753,7 @@ class ProximiioMap {
       collection = {
         type: 'FeatureCollection',
         features: [
-          this.route.levelPaths[level],
+          path,
           {
             type: 'Feature',
             id: Constants.FEATURE_ROUTING_START,

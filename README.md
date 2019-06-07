@@ -14,6 +14,10 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.10
+- added ProximiioMap.singleLevel
+- added ProximiioMap.showLevelCHangers
+
 ### Release 0.2.9
 - fixed icon sizes
 
@@ -405,4 +409,14 @@ ProximiioMap.routeLineStyle = {
   lineWidth: 12,
   lineDasharray: ['literal', [0.5, 0.5]]
 }
+```
+
+Show multi-level route in one level (default: true):
+```
+ProximiioMap.singleLevel = true
+```
+
+Show level-changer icons (default: false)
+```
+ProximiioMap.showLevelChangers = true
 ```
