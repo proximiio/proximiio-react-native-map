@@ -1,6 +1,6 @@
 {
   "name": "proximiio-react-native-map",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Proximi.io React Native Map Plugin",
   "main": "index.js",
   "scripts": {

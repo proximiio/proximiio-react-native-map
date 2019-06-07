@@ -14,6 +14,12 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.9
+- fixed icon sizes
+
+### Release 0.2.8
+- added route line customization
+
 ### Release 0.2.7
 - added optional accessibility argument to routeTo method
 

@@ -102,7 +102,7 @@ class ProximiioMap {
     this.userMarkerImage = blueDot
     this.routingStartImage = null
     this.routingFinishImage = null
-    this.iconSize = PixelRatio.get() / 3
+    this.iconSize = Platform.OS === 'ios' ? 0.5 : 2
     this.imagesIteration = 0
     this.images = {}
     this.font = "Klokantech Noto Sans Regular"
