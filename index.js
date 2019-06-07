@@ -102,10 +102,15 @@ class ProximiioMap {
     this.userMarkerImage = blueDot
     this.routingStartImage = null
     this.routingFinishImage = null
-    this.iconSize = 3 / PixelRatio.get()
+    this.iconSize = PixelRatio.get() / 3
     this.imagesIteration = 0
     this.images = {}
     this.font = "Klokantech Noto Sans Regular"
+    this.routeLineStyle = {
+      lineOpacity: 1,
+      lineColor: '#00ee00',
+      lineWidth: 12
+    }
   }
 
   get DEFAULT_BOTTOM_LAYER() {
@@ -156,7 +161,10 @@ class ProximiioMap {
     }, {})
 
     this.routingStartImage = this.amenityBaseLinks.route_start
-    this.routingFinishImage = this.amenityBaseLinks.route_finish
+
+    if (this.routingFinishImage === null) {
+      this.routingFinishImage = this.amenityBaseLinks.route_finish
+    }
 
     this.updateImages()
 
@@ -493,10 +501,11 @@ class ProximiioMap {
               ["==", "level", level]
             ] :
             [
-            'all',
-            ['==', ['get', 'type'], "area"],
-            ['==', ['to-number', ['get', 'level']], level]
-          ]}
+              'all',
+              ['==', ['get', 'type'], "area"],
+              ['==', ['to-number', ['get', 'level']], level]
+            ]
+          }
           style={{
             fillColor: '#80F080',
             visibility
@@ -675,15 +684,18 @@ class ProximiioMap {
       this.features.features.filter(f => f.properties && f.properties.usecase === 'poi' && f.properties.amenity)
                             .map(f => f.properties.amenity)
     )
+
     const images = {}
 
     amenityIds.forEach(id => {
       images[id] = this.amenityBaseLinks[id]
     })
 
-    this.amenities.filter(a => a.category === 'levelchangers').forEach(amenity => {
-      images[amenity.id] = { uri: amenity.icon }
-    })
+    this.amenities
+      .filter(a => a.category === 'levelchangers')
+      .forEach(amenity => {
+        images[amenity.id] = { uri: amenity.icon }
+      })
 
     images.bluedot = { uri: this.userMarkerImage }
 
@@ -788,7 +800,10 @@ class ProximiioMap {
               "all",
               ["==", "usecase", "route-symbol"]
             ] :
-            ['==', ['get', 'usecase'], "route-symbol"]
+            [
+              '==',
+              ['get', 'usecase'], "route-symbol"
+            ]
           }
           style={{
             iconImage: '{icon}',
@@ -811,11 +826,7 @@ class ProximiioMap {
             ] :
             ['==', ['get', 'usecase'], "route-line"]
           }
-          style={{
-            lineOpacity: 1,
-            lineColor: '#00ee00',
-            lineWidth: 12
-          }}
+          style={this.routeLineStyle}
           visibility={visibility} />
 
       </MapboxGL.ShapeSource>
@@ -886,10 +897,11 @@ class ProximiioMap {
               ["==", "level", level]
             ] :
             [
-            'all',
-            ['==', ['get', 'usecase'], "user-location"],
-            ['==', ['to-number', ['get', 'level']], level]
-          ]}
+              'all',
+              ['==', ['get', 'usecase'], "user-location"],
+              ['==', ['to-number', ['get', 'level']], level]
+            ]
+          }
           aboveLayerID={topLayer}
           style={{
             iconImage: 'bluedot',
@@ -908,10 +920,11 @@ class ProximiioMap {
               ["==", "level", level]
             ] :
             [
-            'all',
-            ['==', ['get', 'usecase'], "user-location-accuracy"],
-            ['==', ['to-number', ['get', 'level']], level]
-          ]}
+              'all',
+              ['==', ['get', 'usecase'], "user-location-accuracy"],
+              ['==', ['to-number', ['get', 'level']], level]
+            ]
+          }
           aboveLayerID={topLayer}
           style={{
             fillColor: '#0080c0',

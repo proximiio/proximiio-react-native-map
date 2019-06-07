@@ -390,3 +390,13 @@ ProximiioMap.on('press:poi', (feature) => {
   console.log(`POI Press: ${feature.properties.title}`)
 })
 ```
+
+Route Line Style:
+```
+ProximiioMap.routeLineStyle = {
+  lineOpacity: 1,
+  lineColor: '#0080c0',
+  lineWidth: 12,
+  lineDasharray: ['literal', [0.5, 0.5]]
+}
+```
