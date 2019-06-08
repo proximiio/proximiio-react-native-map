@@ -14,6 +14,9 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.11
+- updated mapbox import
+
 ### Release 0.2.10
 - added ProximiioMap.singleLevel
 - added ProximiioMap.showLevelCHangers
