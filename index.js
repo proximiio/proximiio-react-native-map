@@ -1,5 +1,5 @@
 import React from 'react'
-import MapboxGL  from '@react-native-mapbox/maps'
+import MapboxGL  from '@react-native-mapbox-gl/maps'
 import Proximiio from 'proximiio-react-native-core'
 import Constants from './constants'
 import { View, Platform, PixelRatio } from 'react-native';
