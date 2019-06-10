@@ -130,8 +130,8 @@ Include project, so gradle knows where to find the project
 ```diff
 rootProject.name = <YOUR_PROJECT_NAME>
 
-include ':android-mapbox-react-native-mapbox-gl'
-project(':android-mapbox-react-native-mapbox-gl').projectDir = new File(rootProject.projectDir, '../node_modules/@react-native-mapbox/maps/android/rctmgl')
+include ':@react-native-mapbox_maps'
+project(':@react-native-mapbox_maps').projectDir = new File(rootProject.projectDir, '../node_modules/@react-native-mapbox-gl/maps/android/rctmgl')
 
 include ':proximiio-react-native-core'
 project(':proximiio-react-native-core').projectDir = new File(rootProject.projectDir, '../node_modules/proximiio-react-native-core/android')
