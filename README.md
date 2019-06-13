@@ -14,6 +14,12 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.14
+- added poiTextStyle
+
+### Release 0.2.13
+- added dotted routing line
+
 ### Release 0.2.12
 - improved caching cleanup
 - improved route image management
@@ -428,4 +434,20 @@ ProximiioMap.singleLevel = true
 Show level-changer icons (default: false)
 ```
 ProximiioMap.showLevelChangers = true
+```
+
+Use dotted routing line
+```
+ProximiioMap.useDottedRouteLine = true
+```
+
+Style POI Text
+```
+ProximiioMap.poiTextStyle = {
+  textOffset: [0, 2],
+  textSize: 14,
+  textFont: this.font,
+  symbolPlacement: 'point',
+  textAllowOverlap: false
+}
 ```

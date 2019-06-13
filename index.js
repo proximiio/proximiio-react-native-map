@@ -4,6 +4,7 @@ import Proximiio from 'proximiio-react-native-core'
 import Constants from './constants'
 import { View, Platform, PixelRatio } from 'react-native';
 import nearestPointOnLine from '@turf/nearest-point-on-line'
+import along from '@turf/along'
 
 const isIOS = Platform.OS === 'ios'
 
@@ -111,9 +112,18 @@ class ProximiioMap {
       lineColor: '#00ee00',
       lineWidth: 12
     }
+    this.useDottedRouteLine = true
     this.timestamp = (new Date()).getTime()
     this.singleLevel = true
     this.showLevelChangers = false
+    this.poiTextStyle = {
+      textOffset: [0, 2],
+      textField: ['get', 'title'],
+      textSize: 14,
+      textFont: this.font,
+      symbolPlacement: 'point',
+      textAllowOverlap: false
+    }
   }
 
   get DEFAULT_BOTTOM_LAYER() {
@@ -388,15 +398,7 @@ class ProximiioMap {
             ['==', ['to-number', ['get', 'level']], level]
           ]
         }
-        style={{
-          textOffset: [0, 2],
-          textField: ['get', 'title'],
-          textSize: 14,
-          textFont: this.font,
-          symbolPlacement: 'point',
-          textAllowOverlap: false,
-          visibility
-        }} />
+        style={{...this.poiTextStyle, visibility }} />
       </MapboxGL.ShapeSource>
     )
   }
@@ -766,7 +768,6 @@ class ProximiioMap {
       collection = {
         type: 'FeatureCollection',
         features: [
-          path,
           {
             type: 'Feature',
             id: Constants.FEATURE_ROUTING_START,
@@ -792,6 +793,26 @@ class ProximiioMap {
             }
           }
         ]
+      }
+
+      if (!this.useDottedRouteLine) {
+        collection.features.push(path)
+      }
+
+      if (this.useDottedRouteLine) {
+        const distance = this.route.distance
+        let distanceRemaining = distance
+        const separator = 1 // 1 meter
+        const chunks = []
+        let i = 0
+        while (distanceRemaining > separator) {
+          const point = along(path, (separator + i) / 1000)
+          point.properties.usecase = 'route-line-symbol'
+          chunks.push(point)
+          distanceRemaining -= separator
+          i += separator
+        }
+        collection.features = [...collection.features, ...chunks]
       }
     }
 
@@ -825,6 +846,28 @@ class ProximiioMap {
             iconSize: 0.8,
             symbolPlacement: 'point',
             iconAllowOverlap: true,
+            textAllowOverlap: false
+          }}
+          visibility={visibility} />
+
+        <MapboxGL.SymbolLayer
+          id={Constants.LAYER_ROUTING_SYMBOLS + '_line'}
+          aboveLayerID={topLayer}
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "usecase", "route-line-symbol"]
+            ] :
+            [
+              '==',
+              ['get', 'usecase'], "route-line-symbol"
+            ]
+          }
+          style={{
+            iconImage: 'bluedot',
+            iconSize: 0.25,
+            symbolPlacement: 'point',
+            iconAllowOverlap: false,
             textAllowOverlap: false
           }}
           visibility={visibility} />
