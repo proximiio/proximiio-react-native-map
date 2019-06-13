@@ -118,7 +118,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime:2.0.0")
     implementation("androidx.lifecycle:lifecycle-common:2.0.0")
     implementation("androidx.arch.core:core-common:2.0.0")
-    implementation project(':android-mapbox-react-native-mapbox-gl')
+    implementation project(':@react-native-mapbox_maps')
     implementation project(':proximiio-react-native-core')
     implementation 'io.proximi.proximiiolibrary:proximiiolibrary:2.8.3'
 }
