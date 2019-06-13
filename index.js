@@ -105,12 +105,13 @@ class ProximiioMap {
     this.iconSize = Platform.OS === 'ios' ? 0.5 : 2
     this.imagesIteration = 0
     this.images = {}
-    this.font = "Klokantech Noto Sans Regular"
+    this.font = ["Klokantech Noto Sans Regular"]
     this.routeLineStyle = {
       lineOpacity: 1,
       lineColor: '#00ee00',
       lineWidth: 12
     }
+    this.timestamp = (new Date()).getTime()
     this.singleLevel = true
     this.showLevelChangers = false
   }
@@ -125,17 +126,17 @@ class ProximiioMap {
 
   cancelFeaturesFiltering() {
     this.filteredFeatures = this.features.features
-    this.featureCache = {}
+    this.resetCache()
   }
 
   filterFeaturesByIds(featureIds) {
     this.filteredFeatures = this.features.features.filter(f => featureIds.includes(f.properties.id))
-    this.featureCache = {}
+    this.resetCache()
   }
 
   filterFeaturesByAmenities(amenityIds) {
     this.filteredFeatures = this.features.features.filter(f => amenityIds.includes(f.properties.amenity))
-    this.featureCache = {}
+    this.resetCache()
   }
 
   async authorize(token) {
@@ -162,7 +163,9 @@ class ProximiioMap {
       return acc
     }, {})
 
-    this.routingStartImage = this.amenityBaseLinks.route_start
+    if (this.routingStartImage === null) {
+      this.routingStartImage = this.amenityBaseLinks.route_start
+    }
 
     if (this.routingFinishImage === null) {
       this.routingFinishImage = this.amenityBaseLinks.route_finish
@@ -245,6 +248,12 @@ class ProximiioMap {
     return poiCache
   }
 
+  resetCache () {
+    this.featureCache = {}
+    this.poiCache = {}
+    this.timestamp = (new Date()).getTime()
+  }
+
   featuresForLevel(level, isPoi) {
     const cacheKey = `${level}-${isPoi ? 'poi' : 'other'}`
     if (typeof this.featureCache[cacheKey] === 'undefined') {
@@ -322,19 +331,23 @@ class ProximiioMap {
 
   poiSourceForLevel(level) {
     const visibility = this.showPOI ? 'visible' : 'none'
+    const rasterLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
+    const topLayer = this.showGeoJSON ? Constants.LAYER_HOLES : rasterLayer
+
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_POI}
-        key={Constants.SOURCE_POI}
+        key={`${Constants.SOURCE_POI}-${this.timestamp}`}
         shape={this.featuresForLevel(level, true)}
         onPress={this.onPoiPress}
-        minZoomLevel={10}
+        minZoomLevel={12}
         maxZoomLevel={30}>
 
       <MapboxGL.SymbolLayer
         id={Constants.LAYER_POIS_ICONS}
         key={Constants.LAYER_POIS_ICONS}
-        minZoomLevel={14}
+        aboveLayerID="simple-tiles"
+        minZoomLevel={12}
         maxZoomLevel={30}
         filter={isIOS ?
           [
@@ -360,6 +373,7 @@ class ProximiioMap {
       <MapboxGL.SymbolLayer
         id={Constants.LAYER_POIS_LABELS}
         key={Constants.LAYER_POIS_LABELS}
+        aboveLayerID={Constants.LAYER_HOLES}
         minZoomLevel={16}
         maxZoomLevel={30}
         filter={isIOS ?
@@ -378,7 +392,7 @@ class ProximiioMap {
           textOffset: [0, 2],
           textField: ['get', 'title'],
           textSize: 14,
-          textFont: [this.font],
+          textFont: this.font,
           symbolPlacement: 'point',
           textAllowOverlap: false,
           visibility
@@ -700,7 +714,6 @@ class ProximiioMap {
       })
 
     images.bluedot = { uri: this.userMarkerImage }
-
     images[Constants.IMAGE_ROUTING_START] = this.routingStartImage
     images[Constants.IMAGE_ROUTING_FINISH] = this.routingFinishImage
 
@@ -762,7 +775,7 @@ class ProximiioMap {
               coordinates: path.geometry.coordinates[0]
             },
             properties: {
-              usecase: 'routing-symbol',
+              usecase: 'route-symbol',
               icon: Constants.IMAGE_ROUTING_START
             }
           },
@@ -774,7 +787,7 @@ class ProximiioMap {
               coordinates: path.geometry.coordinates[path.geometry.coordinates.length - 1]
             },
             properties: {
-              usecase: 'routing-symbol',
+              usecase: 'route-symbol',
               icon: Constants.IMAGE_ROUTING_FINISH
             }
           }
@@ -809,7 +822,7 @@ class ProximiioMap {
           }
           style={{
             iconImage: '{icon}',
-            iconSize: this.iconSize,
+            iconSize: 0.8,
             symbolPlacement: 'point',
             iconAllowOverlap: true,
             textAllowOverlap: false

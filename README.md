@@ -14,6 +14,12 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.12
+- improved caching cleanup
+- improved route image management
+- ProximiioMap.font changed to array format
+- minor fixes
+
 ### Release 0.2.11
 - updated mapbox import
 
