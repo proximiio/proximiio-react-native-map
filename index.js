@@ -240,6 +240,12 @@ class ProximiioMap {
     }
   }
 
+  selectFeature (feature) {
+    this.filterFeaturesByIds([ feature.properties.id ])
+    this.resetCache()
+    this.updateImages()
+  }
+
   cancelRoute() {
     this.route = null
   }

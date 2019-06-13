@@ -14,6 +14,9 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.15
+- added selectFeature
+
 ### Release 0.2.14
 - added poiTextStyle
 
