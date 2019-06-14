@@ -231,11 +231,11 @@ class ProximiioMap {
         return null
       }
 
-      if (!this.skipRender) {
+      if (!skipRender) {
         this.route = route
       }
       this.notify('route:change', route)
-      return this.route
+      return route
     } catch (e) {
       console.error('received error route response', e)
       return null
