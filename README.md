@@ -13,6 +13,8 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 ```
 
 ## ChangeLog
+### Reelase 0.2.16
+- added skipRender option on routeTo method
 
 ### Release 0.2.15
 - added selectFeature
@@ -378,8 +380,9 @@ MapboxGL.setAccessToken(MAPBOX_TOKEN) // authorize with mapbox token
 
 request routing:
 ```js
-ProximiioMap.routeTo([lng, lat], targetLevel, accessibility)
+ProximiioMap.routeTo([lng, lat], targetLevel, accessibility, skipRender)
 // accessibility is optional boolean value
+// skipRender is optional boolean value
 ```
 
 cancel routing:

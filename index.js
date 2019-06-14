@@ -212,7 +212,7 @@ class ProximiioMap {
     return `${GEO_API_ROOT}/style?token=${TOKEN}&expr=false&basic=true`
   }
 
-  async routeTo(coordinates, level, accessibility = false) {
+  async routeTo(coordinates, level, accessibility = false, skipRender = false) {
     if (this.currentLocation === null) {
       //console.log('routing not possible, current location (source) not available')
       return
@@ -231,7 +231,9 @@ class ProximiioMap {
         return null
       }
 
-      this.route = route
+      if (!this.skipRender) {
+        this.route = route
+      }
       this.notify('route:change', route)
       return this.route
     } catch (e) {
