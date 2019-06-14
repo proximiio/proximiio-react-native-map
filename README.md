@@ -13,6 +13,9 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 ```
 
 ## ChangeLog
+### Release 0.2.17
+- fixed dotted line symbol sizes
+
 ### Reelase 0.2.16
 - added skipRender option on routeTo method
 

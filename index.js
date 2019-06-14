@@ -351,7 +351,6 @@ class ProximiioMap {
     const visibility = this.showPOI ? 'visible' : 'none'
     const rasterLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
     const topLayer = this.showGeoJSON ? Constants.LAYER_HOLES : rasterLayer
-
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_POI}
@@ -364,7 +363,7 @@ class ProximiioMap {
       <MapboxGL.SymbolLayer
         id={Constants.LAYER_POIS_ICONS}
         key={Constants.LAYER_POIS_ICONS}
-        aboveLayerID="simple-tiles"
+        aboveLayerID={Constants.LAYER_HOLES}
         minZoomLevel={12}
         maxZoomLevel={30}
         filter={isIOS ?
@@ -873,7 +872,7 @@ class ProximiioMap {
           }
           style={{
             iconImage: 'bluedot',
-            iconSize: 0.25,
+            iconSize: isIOS ? 0.25 : 0.5,
             symbolPlacement: 'point',
             iconAllowOverlap: false,
             textAllowOverlap: false
