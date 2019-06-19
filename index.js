@@ -5,6 +5,10 @@ import Constants from './constants'
 import { View, Platform, PixelRatio } from 'react-native';
 import nearestPointOnLine from '@turf/nearest-point-on-line'
 import along from '@turf/along'
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import bbox from '@turf/bbox'
+import bboxPolygon from '@turf/bbox-polygon'
+import { lineString } from '@turf/helpers'
 
 const isIOS = Platform.OS === 'ios'
 
@@ -15,6 +19,15 @@ const blueDot = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAA0CAYAAADFe
 
 const jsonize = response => response.json()
 const compareLatLngCoordinates = (a, b) => a[0] === b[0] && a[1] === b[1]
+
+
+const toPoint = coordinates => ({
+  type: 'Feature',
+  geometry: {
+    type: 'Point',
+    coordinates
+  }
+})
 
 const createGeoJSONCircle = (center, radiusInKm, points) => {
   if(!points) points = 64;
@@ -134,6 +147,14 @@ class ProximiioMap {
     this.setDefaults()
   }
 
+  isInsideBounds(coordinates, bounds) {
+    const point = toPoint(coordinates)
+    const boundPoints = lineString(bounds)
+    const box = bbox(boundPoints)
+    const polygon = bboxPolygon(box)
+    return booleanPointInPolygon(point, polygon)
+  }
+
   cancelFeaturesFiltering() {
     this.filteredFeatures = this.features.features
     this.resetCache()
@@ -231,11 +252,11 @@ class ProximiioMap {
         return null
       }
 
-      if (!this.skipRender) {
+      if (!skipRender) {
         this.route = route
       }
       this.notify('route:change', route)
-      return this.route
+      return route
     } catch (e) {
       console.error('received error route response', e)
       return null

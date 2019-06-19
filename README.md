@@ -13,6 +13,10 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 ```
 
 ## ChangeLog
+
+### Release 0.2.18
+- added isInsideBounds method
+
 ### Release 0.2.17
 - fixed dotted line symbol sizes
 
@@ -459,4 +463,8 @@ ProximiioMap.poiTextStyle = {
   symbolPlacement: 'point',
   textAllowOverlap: false
 }
+
+Check if coordinate is inside bounds, use same format as for maxBounds
+```
+ProximiioMap.isInsideBounds([lng, lat], [[lng, lat], [lng, lat]])
 ```
