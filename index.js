@@ -129,6 +129,9 @@ class ProximiioMap {
     this.timestamp = (new Date()).getTime()
     this.singleLevel = true
     this.showLevelChangers = false
+    this.userMarkerIconSize = this.getIconSize(0.75)
+    this.routeIconSize = this.getIconSize(0.5)
+    this.routeDotIconSize = this.getIconSize(0.25)
     this.poiTextStyle = {
       textOffset: [0, 2],
       textField: ['get', 'title'],
@@ -147,7 +150,15 @@ class ProximiioMap {
     this.setDefaults()
   }
 
+  getIconSize(size) {
+    return isIOS ? size : size * 2
+  }
+
   isInsideBounds(coordinates, bounds) {
+    if (!(Array.isArray(coordinates) && Array.isArray(bounds))) {
+      return false
+    }
+
     const point = toPoint(coordinates)
     const boundPoints = lineString(bounds)
     const box = bbox(boundPoints)
@@ -871,7 +882,7 @@ class ProximiioMap {
           }
           style={{
             iconImage: '{icon}',
-            iconSize: 0.8,
+            iconSize: this.routeIconSize,
             symbolPlacement: 'point',
             iconAllowOverlap: true,
             textAllowOverlap: false
@@ -893,7 +904,7 @@ class ProximiioMap {
           }
           style={{
             iconImage: 'bluedot',
-            iconSize: isIOS ? 0.25 : 0.5,
+            iconSize: this.routeDotIconSize,
             symbolPlacement: 'point',
             iconAllowOverlap: false,
             textAllowOverlap: false
@@ -991,9 +1002,10 @@ class ProximiioMap {
           aboveLayerID={topLayer}
           style={{
             iconImage: 'bluedot',
-            iconSize: this.iconSize,
+            iconSize: this.userMarkerIconSize,
             iconAllowOverlap: true,
-            iconPitchAlignment: 'map'
+            iconPitchAlignment: 'map',
+            iconAllowOverlap: false
           }}
           visibility={hasLocation ? 'visible' : 'none'}/>
 
