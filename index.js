@@ -954,7 +954,7 @@ class ProximiioMap {
       let nearestPathPointDistance = Infinity
       const paths = this.filteredFeatures.filter(feature => feature.properties.class === 'path' && feature.properties.level === level)
       paths.forEach((path, index) => {
-        const nearest = nearestPointForPath(path, coordinates)
+        const nearest = this.nearestPointForPath(path, coordinates)
         const nearestDistance = turf.distance(path, nearest)
         if (nearestDistance <= nearestPathPointDistance)
           nearestPath = path
