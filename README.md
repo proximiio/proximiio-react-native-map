@@ -14,6 +14,9 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.20
+- added snapping to paths (default: true)
+
 ### Release 0.2.18
 - added isInsideBounds method
 

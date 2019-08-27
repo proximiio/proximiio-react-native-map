@@ -9,6 +9,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import bbox from '@turf/bbox'
 import bboxPolygon from '@turf/bbox-polygon'
 import { lineString } from '@turf/helpers'
+import distance from '@turf/distance'
 
 const isIOS = Platform.OS === 'ios'
 
@@ -932,7 +933,8 @@ class ProximiioMap {
   }
 
   nearestPointForPath = (point, path) => {
-    const nearest = nearestPointOnLine(path, point, {units: 'kilometers'})
+    const _point = { type: 'Feature', geometry: { type: 'Point', coordinates: point }}
+    const nearest = nearestPointOnLine(path, _point, {units: 'kilometers'})
     nearest.properties.dist = path.dist
     nearest.properties.location = path.location
     nearest.properties.level = path.level
@@ -944,23 +946,25 @@ class ProximiioMap {
     const userLocation = hasLocation ? [ this.currentLocation.lng, this.currentLocation.lat ] : [0, 0]
     let coordinates = userLocation
 
+    if (coordinates[0] === 0 && coordinates[1] === 0) {
+      return null
+    }
+
     if (this.route) {
       coordinates = nearestPointOnLine(this.route.levelPaths[level], coordinates).geometry.coordinates
     }
 
     if (!this.route && this.userLocationSnapping) {
-      let nearestPath = null
       let nearestPathPoint = null
       let nearestPathPointDistance = Infinity
-      const paths = this.filteredFeatures.filter(feature => feature.properties.class === 'path' && feature.properties.level === level)
+      const paths = this.features.features.filter(feature => feature.properties.class === 'path' && feature.properties.level === level)
       paths.forEach((path, index) => {
-        const nearest = this.nearestPointForPath(path, coordinates)
-        const nearestDistance = turf.distance(path, nearest)
+        const nearest = this.nearestPointForPath(coordinates, path)
+        const nearestDistance = distance(coordinates, nearest)
         if (nearestDistance <= nearestPathPointDistance)
-          nearestPath = path
           nearestPathPoint = nearest
           nearestPathPointDistance = nearestDistance
-      }) 
+      })
       coordinates = nearestPathPoint.geometry.coordinates
     }
 
