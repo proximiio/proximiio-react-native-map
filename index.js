@@ -104,6 +104,7 @@ class ProximiioMap {
     this.layerCache = {}
     this.listeners = []
     this.currentLocation = null
+    this.userLocationSnapping = true
     this.level = 0
     this.userLevel = 0
     this.route = null
@@ -930,6 +931,14 @@ class ProximiioMap {
     )
   }
 
+  nearestPointForPath = (point, path) => {
+    const nearest = nearestPointOnLine(path, point, {units: 'kilometers'})
+    nearest.properties.dist = path.dist
+    nearest.properties.location = path.location
+    nearest.properties.level = path.level
+    return nearest
+  }
+
   userPositionSource(level) {
     const hasLocation = this.currentLocation !== null
     const userLocation = hasLocation ? [ this.currentLocation.lng, this.currentLocation.lat ] : [0, 0]
@@ -937,6 +946,22 @@ class ProximiioMap {
 
     if (this.route) {
       coordinates = nearestPointOnLine(this.route.levelPaths[level], coordinates).geometry.coordinates
+    }
+
+    if (!this.route && this.userLocationSnapping) {
+      let nearestPath = null
+      let nearestPathPoint = null
+      let nearestPathPointDistance = Infinity
+      const paths = this.filteredFeatures.filter(feature => feature.properties.class === 'path' && feature.properties.level === level)
+      paths.forEach((path, index) => {
+        const nearest = nearestPointForPath(path, coordinates)
+        const nearestDistance = turf.distance(path, nearest)
+        if (nearestDistance <= nearestPathPointDistance)
+          nearestPath = path
+          nearestPathPoint = nearest
+          nearestPathPointDistance = nearestDistance
+      }) 
+      coordinates = nearestPathPoint.geometry.coordinates
     }
 
     const accuracy = hasLocation ? this.currentLocation.accuracy / 1000 : 0
