@@ -14,6 +14,9 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.21
+- added hiking_paths layer
+
 ### Release 0.2.20
 - added snapping to paths (default: true)
 
