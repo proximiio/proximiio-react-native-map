@@ -504,6 +504,30 @@ class ProximiioMap {
             visibility
           }} />
 
+        <MapboxGL.LineLayer
+          id="hiking_paths"
+          aboveLayerID={Constants.LAYER_FLOORS_LINES}
+          minZoomLevel={12}
+          maxZoomLevel={24}
+          filter={isIOS ?
+            [
+              "all",
+              ["==", "type", "hiking_path"],
+              ["==", "level", level]
+            ] :
+            [
+              'all',
+              ['==', ['get', 'type'], "hiking_path"],
+              ['==', ['to-number', ['get', 'level']], level]
+            ]
+          }
+          style={{
+            lineColor: "#00a99d",
+            lineOpacity: 1,
+            lineWidth: 6
+            visibility
+          }} />
+
         <MapboxGL.FillLayer
           id={Constants.LAYER_BASE_FLOOR}
           aboveLayerID={Constants.LAYER_FLOORS_LINES}
