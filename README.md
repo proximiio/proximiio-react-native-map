@@ -4,7 +4,7 @@
 ## Getting started
 
 Install Proximiio React Native Core and Map plugins, React Native Mapbox will be installed
-as proximiio-react-native-map depdendency from custom fork.
+as proximiio-react-native-map dependency from custom fork.
 
 ```
 npm i -s https://github.com/proximiio/maps
