@@ -14,6 +14,9 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.22
+- added routeTo outdoor option
+
 ### Release 0.2.21
 - added hiking_paths layer
 
@@ -393,9 +396,10 @@ MapboxGL.setAccessToken(MAPBOX_TOKEN) // authorize with mapbox token
 
 request routing:
 ```js
-ProximiioMap.routeTo([lng, lat], targetLevel, accessibility, skipRender)
+ProximiioMap.routeTo([lng, lat], targetLevel, accessibility, skipRender, outdoor)
 // accessibility is optional boolean value
 // skipRender is optional boolean value
+// outdoor is optional boolen value
 ```
 
 cancel routing:

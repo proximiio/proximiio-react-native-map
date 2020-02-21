@@ -2,7 +2,7 @@ import React from 'react'
 import MapboxGL  from '@react-native-mapbox-gl/maps'
 import Proximiio from 'proximiio-react-native-core'
 import Constants from './constants'
-import { View, Platform, PixelRatio } from 'react-native';
+import { View, Platform, PixelRatio } from 'react-native'
 import nearestPointOnLine from '@turf/nearest-point-on-line'
 import along from '@turf/along'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
@@ -125,9 +125,9 @@ class ProximiioMap {
     this.routeLineStyle = {
       lineOpacity: 1,
       lineColor: '#00ee00',
-      lineWidth: 12
+      lineWidth: 6
     }
-    this.useDottedRouteLine = true
+    this.useDottedRouteLine = false
     this.timestamp = (new Date()).getTime()
     this.singleLevel = true
     this.showLevelChangers = false
@@ -142,6 +142,7 @@ class ProximiioMap {
       symbolPlacement: 'point',
       textAllowOverlap: false
     }
+    this.outdoorRoute = false
   }
 
   get DEFAULT_BOTTOM_LAYER() {
@@ -246,9 +247,8 @@ class ProximiioMap {
     return `${GEO_API_ROOT}/style?token=${TOKEN}&expr=false&basic=true`
   }
 
-  async routeTo(coordinates, level, accessibility = false, skipRender = false) {
+  async routeTo(coordinates, level, accessibility = false, skipRender = false, outdoor = false) {
     if (this.currentLocation === null) {
-      //console.log('routing not possible, current location (source) not available')
       return
     }
 
@@ -258,18 +258,54 @@ class ProximiioMap {
     const lngFinish = coordinates[0]
     const latFinish = coordinates[1]
     const levelFinish = level
-    const url = `${GEO_API_ROOT}/route/${lngStart},${latStart},${levelStart}%3B${lngFinish},${latFinish},${levelFinish}?token=${TOKEN}&accessibility=${accessibility}`
+    this.outdoorRoute = outdoor
     try {
-      const route = await fetch(url).then(jsonize)
-      if (!route.levelPaths) {
-        return null
-      }
+      if (!outdoor) {
+        const url = `${GEO_API_ROOT}/route/${lngStart},${latStart},${levelStart}%3B${lngFinish},${latFinish},${levelFinish}?token=${TOKEN}&accessibility=${accessibility}`
+        const route = await fetch(url).then(jsonize)
+        if (!route.levelPaths) {
+          return null
+        }
 
-      if (!skipRender) {
-        this.route = route
+        if (!skipRender) {
+          this.route = route
+        }
+      } else {
+        const url = `https://eu1.proximi.fi/route/v1/driving/${lngStart},${latStart};${lngFinish},${latFinish}?geometries=geojson`
+        const routeResult = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}`} }).then(jsonize)
+
+        if (routeResult.routes.length === 0) {
+          return null
+        }
+
+        const _route = routeResult.routes[0]
+        _route.properties = {}
+        _route.type = 'Feature'
+
+        const route = {
+          type: 'Feature',
+          distance: _route.distance,
+          distanceTime: _route.duration,
+          linestring: {
+            path: _route
+          },
+          levelPaths: {
+            0: _route
+          },
+          steps: [
+            {
+              distanceTime: _route.distance,
+              instruction: ''
+            }
+          ]
+        }
+
+        if (!skipRender) {
+          this.route = route
+        }
       }
-      this.notify('route:change', route)
-      return route
+      this.notify('route:change', this.route)
+      return this.route
     } catch (e) {
       console.error('received error route response', e)
       return null
@@ -524,9 +560,10 @@ class ProximiioMap {
           style={{
             lineColor: "#00a99d",
             lineOpacity: 1,
-            lineWidth: 6
+            lineWidth: 6,
             visibility
-          }} />
+          }}
+        />
 
         <MapboxGL.FillLayer
           id={Constants.LAYER_BASE_FLOOR}
@@ -811,7 +848,9 @@ class ProximiioMap {
     if (!this.route) {
       ignore = true
     } else if (this.route.levelPaths) {
-      path = this.singleLevel ? this.route.linestring.path : this.route.levelPaths[level]
+      path = this.outdoorRoute ?
+        this.route.levelPaths[level] :
+        this.singleLevel ? this.route.linestring.path : this.route.levelPaths[level]
     }
 
     if (!path) {
@@ -820,15 +859,15 @@ class ProximiioMap {
 
     let collection = DummyCollection
 
-    if (!ignore) {
+    if (path && !ignore) {
       path.properties.usecase = 'route-line'
-      const routeStartCurrent = path.geometry.coordinates[0]
-      const routeStartOriginal = this.route.nearestPoint.geometry.coordinates
-      const isRouteStart = compareLatLngCoordinates(routeStartCurrent, routeStartOriginal)
-      const routeFinishCurrent = path.geometry.coordinates[path.geometry.coordinates.length - 1]
-      const routeFinishPath = this.route.levelPaths[this.route.finish.properties.level]
-      const routeFinishOriginal = routeFinishPath.geometry.coordinates[routeFinishPath.geometry.coordinates.length - 1]
-      const isRouteFinish = compareLatLngCoordinates(routeFinishCurrent, routeFinishOriginal)
+      // const routeStartCurrent = path.geometry.coordinates[0]
+      // const routeStartOriginal = this.route.nearestPoint.geometry.coordinates
+      // const isRouteStart = compareLatLngCoordinates(routeStartCurrent, routeStartOriginal)
+      // const routeFinishCurrent = path.geometry.coordinates[path.geometry.coordinates.length - 1]
+      // const routeFinishPath = this.route.levelPaths[this.route.finish.properties.level]
+      // const routeFinishOriginal = routeFinishPath.geometry.coordinates[routeFinishPath.geometry.coordinates.length - 1]
+      // const isRouteFinish = compareLatLngCoordinates(routeFinishCurrent, routeFinishOriginal)
 
       collection = {
         type: 'FeatureCollection',
@@ -856,7 +895,8 @@ class ProximiioMap {
               usecase: 'route-symbol',
               icon: Constants.IMAGE_ROUTING_FINISH
             }
-          }
+          },
+          path
         ]
       }
 
@@ -864,7 +904,7 @@ class ProximiioMap {
         collection.features.push(path)
       }
 
-      if (this.useDottedRouteLine) {
+      if (!this.outdoorRoute && this.useDottedRouteLine) {
         const distance = this.route.distance
         let distanceRemaining = distance
         const separator = 1 // 1 meter
@@ -884,13 +924,14 @@ class ProximiioMap {
     const rasterLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
     const topLayer = this.showGeoJSON ? Constants.LAYER_HOLES : rasterLayer
     const visibility = !ignore ? 'visible' : 'none'
+
     return (
       <MapboxGL.ShapeSource
         id={Constants.SOURCE_ROUTING}
         key={Constants.SOURCE_ROUTING}
         shape={collection}
         cluster={false}
-        minZoomLevel={10}
+        minZoomLevel={1}
         maxZoomLevel={24}>
 
         <MapboxGL.SymbolLayer
@@ -939,7 +980,7 @@ class ProximiioMap {
 
         <MapboxGL.LineLayer
           id={Constants.LAYER_ROUTING_LINE}
-          minZoomLevel={10}
+          minZoomLevel={1}
           maxZoomLevel={24}
           aboveLayerID={topLayer}
           filter={isIOS ?
@@ -989,7 +1030,10 @@ class ProximiioMap {
           nearestPathPoint = nearest
           nearestPathPointDistance = nearestDistance
       })
-      coordinates = nearestPathPoint.geometry.coordinates
+
+      if (nearestPathPoint) {
+        coordinates = nearestPathPoint.geometry.coordinates
+      }
     }
 
     const accuracy = hasLocation ? this.currentLocation.accuracy / 1000 : 0
