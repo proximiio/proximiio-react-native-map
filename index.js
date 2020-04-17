@@ -119,6 +119,8 @@ class ProximiioMap {
     this.routingStartImage = null
     this.routingFinishImage = null
     this.iconSize = Platform.OS === 'ios' ? 0.5 : 2
+    this.poiMinZoom = 12
+    this.poiLabelMinZoom = 16
     this.imagesIteration = 0
     this.images = {}
     this.font = ["Klokantech Noto Sans Regular"]
@@ -427,7 +429,7 @@ class ProximiioMap {
         key={`${Constants.SOURCE_POI}-${this.timestamp}`}
         shape={this.featuresForLevel(level, true)}
         onPress={this.onPoiPress}
-        minZoomLevel={12}
+        minZoomLevel={this.poiMinZoom}
         maxZoomLevel={30}>
 
       <MapboxGL.SymbolLayer
@@ -461,7 +463,7 @@ class ProximiioMap {
         id={Constants.LAYER_POIS_LABELS}
         key={Constants.LAYER_POIS_LABELS}
         aboveLayerID={Constants.LAYER_HOLES}
-        minZoomLevel={16}
+        minZoomLevel={this.poiLabelMinZoom}
         maxZoomLevel={30}
         filter={isIOS ?
           [
