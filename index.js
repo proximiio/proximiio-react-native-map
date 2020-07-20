@@ -144,6 +144,7 @@ class ProximiioMap {
       symbolPlacement: 'point',
       textAllowOverlap: false
     }
+    this.poiIconsVisible = true
     this.outdoorRoute = false
   }
 
@@ -456,7 +457,7 @@ class ProximiioMap {
           symbolPlacement: 'point',
           iconAllowOverlap: true,
           textAllowOverlap: false,
-          visibility
+          visibility: this.poiIconsVisible ? 'visible' : 'none'
         }} />
 
       <MapboxGL.SymbolLayer
@@ -484,7 +485,9 @@ class ProximiioMap {
 
   shapeSourceForLevel(level) {
     const topLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
-    const visibility = this.showGeoJSON ? 'visible' : 'none'
+    const visibility = this.showGeoJSON ? '
+
+' : 'none'
     const collection = this.featuresForLevel(level, false)
 
     return (
