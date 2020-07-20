@@ -14,6 +14,9 @@ npm i -s https://github.com/proximiio/proximiio-react-native-map
 
 ## ChangeLog
 
+### Release 0.2.23
+- added poiIconsVisible option
+
 ### Release 0.2.22
 - added routeTo outdoor option
 
