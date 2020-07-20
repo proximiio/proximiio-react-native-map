@@ -485,9 +485,7 @@ class ProximiioMap {
 
   shapeSourceForLevel(level) {
     const topLayer = this.showRaster ? this.lastFloorLayer : this.bottomLayer
-    const visibility = this.showGeoJSON ? '
-
-' : 'none'
+    const visibility = this.showGeoJSON ? 'visible' : 'none'
     const collection = this.featuresForLevel(level, false)
 
     return (
