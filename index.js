@@ -561,9 +561,9 @@ class ProximiioMap {
             ]
           }
           style={{
-            lineColor: 'get', 'color'],
+            lineColor: ['get', 'color'],
             lineOpacity: 1,
-            lineWidth: 'get', 'width'],
+            lineWidth: ['get', 'width'],
             lineDasharray: ['literal', [1.6, 0.6]],
             visibility
           }}
